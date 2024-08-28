@@ -4,6 +4,7 @@ import com.yavuzmobile.borsaanalizim.data.model.BaseResponse
 import com.yavuzmobile.borsaanalizim.data.model.FinancialStatementResponse
 import com.yavuzmobile.borsaanalizim.data.model.GetStockPerformanceRequest
 import com.yavuzmobile.borsaanalizim.data.model.PriceHistory
+import com.yavuzmobile.borsaanalizim.data.model.ShortFinancialStatementResponse
 import okhttp3.ResponseBody
 import retrofit2.Response
 import retrofit2.http.Body
@@ -25,11 +26,18 @@ interface IsYatirimApi {
 
     // ?companyCode=THYAO&exchange=TRY&financialGroup=XI_29&year1=2024&period1=6&year2=2024&period2=3&year3=2023&period3=12&year4=2023&period4=3
     @GET("_layouts/15/IsYatirim.Website/Common/Data.aspx/MaliTablo")
-    suspend fun getBalanceSheetJson(
+    suspend fun getFinancialStatement(
         @Query("companyCode") companyCode: String, @Query("exchange") exchange: String, @Query("financialGroup") financialGroup: String,
         @Query("year1") year1: String, @Query("period1") period1: String, @Query("year2") year2: String, @Query("period2") period2: String,
         @Query("year3") year3: String, @Query("period3") period3: String, @Query("year4") year4: String, @Query("period4") period4: String
     ): Response<BaseResponse<List<FinancialStatementResponse>>>
+
+    // ?companyCode=THYAO&exchange=TRY&year1=2024&period1=3
+    @GET("_layouts/15/IsYatirim.Website/Common/Data.aspx/MaliTabloShortTable")
+    suspend fun getShortFinancialStatement(
+        @Query("companyCode") companyCode: String, @Query("exchange") exchange: String, @Query("financialGroup") financialGroup: String,
+        @Query("year1") year1: String, @Query("period1") period1: String, @Query("year2") year2: String, @Query("period2") period2: String
+    ): Response<BaseResponse<List<ShortFinancialStatementResponse>>>
 
     @POST("_layouts/15/IsYatirim.Website/StockInfo/CompanyInfoAjax.aspx/GetHissePerformans")
     suspend fun getStockPerformance(@Body request: GetStockPerformanceRequest): Response<ResponseBody>
