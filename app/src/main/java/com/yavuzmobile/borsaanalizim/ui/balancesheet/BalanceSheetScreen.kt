@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
@@ -31,10 +30,7 @@ import androidx.navigation.NavController
 import com.yavuzmobile.borsaanalizim.ext.cleanedNumberFormat
 import com.yavuzmobile.borsaanalizim.ext.toDoubleOrDefault
 import com.yavuzmobile.borsaanalizim.ui.BaseScreen
-import com.yavuzmobile.borsaanalizim.ui.component.BarGraph
-import com.yavuzmobile.borsaanalizim.ui.component.BarType
 import com.yavuzmobile.borsaanalizim.ui.component.bargraphwizard.BarGraphWizard
-import com.yavuzmobile.borsaanalizim.ui.theme.Purple80
 import java.util.Locale
 
 @SuppressLint("StateFlowValueCalledInComposition")
