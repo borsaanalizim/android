@@ -1,6 +1,5 @@
 package com.yavuzmobile.borsaanalizim.ui.balancesheet
 
-import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.yavuzmobile.borsaanalizim.data.Result
@@ -48,18 +47,10 @@ class BalanceSheetViewModel @Inject constructor(
     private val _balanceSheetUiState = MutableStateFlow(UiState<List<BalanceSheet>>())
     val balanceSheetUiState: StateFlow<UiState<List<BalanceSheet>>> = _balanceSheetUiState.asStateFlow()
 
-    // priceDateHistoryState verisini Map<String, PriceDate> olarak önceden dönüştür.
-    val priceDateMap = priceDateHistoryState.value.data?.data?.associateBy { priceDateHistory ->
-        DateUtil.getYearMonthDayDateString(DateUtil.fromTimestamp(priceDateHistory.timestamp ?: 0L)!!)
-    }
-
-    val periodPrice = mutableMapOf<String, Double?>()
-
-    val cache = mutableMapOf<String, Double?>()
+    private val periodPrice = mutableMapOf<String, Double?>()
 
     fun fetchData(code: String) {
         viewModelScope.launch {
-            Log.i("FIRST_LOG", "TRUE")
             async { localRepository.getBalanceSheetOfStockDate(code) }.await().collect {
                 when (it) {
                     is Result.Loading -> _balanceSheetDatesState.update { state -> state.copy(true) }
@@ -67,7 +58,6 @@ class BalanceSheetViewModel @Inject constructor(
                     is Result.Success -> _balanceSheetDatesState.update { state -> state.copy(false, data = it.data) }
                 }
             }
-            Log.i("SECOND_LOG", "TRUE")
             async { isYatirimRepository.fetchPriceHistory(code) }.await().collect {
                 when (it) {
                     is Result.Loading -> _priceDateHistoryState.update { state -> state.copy(true) }
@@ -83,7 +73,6 @@ class BalanceSheetViewModel @Inject constructor(
                     }
                 }
             }
-            Log.i("THIRD_LOG", "TRUE")
             val balanceSheetPeriods: List<YearMonth> = DateUtil.getLastTwelvePeriods()
             isYatirimRepository.getFinancialStatement(
                 stockCode = code,
@@ -130,11 +119,9 @@ class BalanceSheetViewModel @Inject constructor(
                                             is Result.Loading -> _balanceSheetUiState.update { state -> state.copy(isLoading = true) }
                                             is Result.Error -> _balanceSheetUiState.update { state -> state.copy(isLoading = false, error = thirdResult.error) }
                                             is Result.Success -> {
-                                                Log.i("FOURTH_LOG", "TRUE")
                                                 balanceSheetPeriods.forEach { balanceSheetPeriod ->
                                                     val balanceSheetPeriodString = "${balanceSheetPeriod.year}/${balanceSheetPeriod.month}"
 
-                                                    // Önce cache'de var mı kontrol et
                                                     periodPrice[balanceSheetPeriodString] = periodPrice[balanceSheetPeriodString] ?: run {
                                                         val year = balanceSheetPeriod.year.toInt()
                                                         val month = balanceSheetPeriod.month.toInt()
@@ -142,7 +129,6 @@ class BalanceSheetViewModel @Inject constructor(
                                                         val matchedYear = if (month == 12) "${year + 1}" else "$year"
                                                         val matchedMonth = if (month == 12) 1 else month + 1
 
-                                                        // Bu map işlemi gereksiz tekrarları engeller
                                                         val priceDateMap = priceDateHistoryState.value.data?.data?.associateBy {
                                                             DateUtil.fromTimestamp(it.timestamp ?: 0L)?.toInstant()?.atZone(ZoneId.systemDefault())?.toLocalDate()
                                                         }
@@ -160,7 +146,6 @@ class BalanceSheetViewModel @Inject constructor(
                                                         matchedPrice
                                                     }
                                                 }
-                                                Log.i("FIFTH_LOG", "TRUE")
 
                                                 val periodItemDescTrList = mutableMapOf<String, String>()
                                                 val periodItemDescEngList = mutableMapOf<String, String>()
@@ -201,8 +186,6 @@ class BalanceSheetViewModel @Inject constructor(
                                                     period12ValueList[financialStatement.itemCode.orEmpty()] = financialStatement.value4.orEmpty()
                                                 }
 
-                                                Log.i("SIXTH_LOG", "TRUE")
-
                                                 allPeriods.add(period1ValueList)
                                                 allPeriods.add(period2ValueList)
                                                 allPeriods.add(period3ValueList)
@@ -215,8 +198,6 @@ class BalanceSheetViewModel @Inject constructor(
                                                 allPeriods.add(period10ValueList)
                                                 allPeriods.add(period11ValueList)
                                                 allPeriods.add(period12ValueList)
-
-                                                Log.i("SEVENTH_LOG", "TRUE")
 
                                                 val listData = allPeriods.map { period ->
                                                     BalanceSheetResponse(
@@ -248,11 +229,7 @@ class BalanceSheetViewModel @Inject constructor(
                                                     )
                                                 }
 
-                                                Log.i("EIGHTH_LOG", "TRUE")
-
                                                 val mappedBalanceSheetPeriods = balanceSheetPeriods.map { mappedPeriod -> "${mappedPeriod.year}/${mappedPeriod.month}" }
-
-                                                Log.i("NINTH_LOG", "TRUE")
 
                                                 val companyCard = CompanyCard(code, mappedBalanceSheetPeriods, listData)
                                                 _companyCardState.update { state -> state.copy(isLoading = false, data = companyCard) }
@@ -340,7 +317,6 @@ class BalanceSheetViewModel @Inject constructor(
                 )
             )
         }
-        Log.i("TENTH_LOG", "TRUE")
         _balanceSheetUiState.update { state -> state.copy(isLoading = false, data = balanceSheetList) }
     }
 
