@@ -1,21 +1,23 @@
 package com.yavuzmobile.borsaanalizim.data.repository.local
 
 import com.yavuzmobile.borsaanalizim.data.Result
+import com.yavuzmobile.borsaanalizim.data.local.dao.BalanceSheetDao
 import com.yavuzmobile.borsaanalizim.data.local.dao.StockDao
 import com.yavuzmobile.borsaanalizim.data.local.entity.DateEntity
 import com.yavuzmobile.borsaanalizim.data.local.entity.StockWithDates
 import com.yavuzmobile.borsaanalizim.data.model.BalanceSheetDate
 import com.yavuzmobile.borsaanalizim.data.model.BalanceSheetDateResponse
 import com.yavuzmobile.borsaanalizim.data.model.Stock
+import com.yavuzmobile.borsaanalizim.model.BalanceSheetWithRatios
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-class LocalRepository @Inject constructor(private val stockDao: StockDao) {
+class LocalRepository @Inject constructor(private val stockDao: StockDao, private val balanceSheetDao: BalanceSheetDao) {
 
-    fun getLastTwelveBalanceSheetDateOfStock(stockCode: String): Flow<Result<BalanceSheetDateResponse>> = flow {
+    suspend fun getLastTwelveBalanceSheetDateOfStock(stockCode: String): Flow<Result<BalanceSheetDateResponse>> = flow {
         emit(Result.Loading())
         try {
             val stockWithDates = stockDao.getStockWithDates(stockCode)
@@ -64,7 +66,7 @@ class LocalRepository @Inject constructor(private val stockDao: StockDao) {
         }
     }
 
-    fun getStocks(): Flow<Result<Stock>> = flow {
+    suspend fun getStocks(): Flow<Result<Stock>> = flow {
         emit(Result.Loading())
         try {
             val stockList = ArrayList<String>()
@@ -77,4 +79,16 @@ class LocalRepository @Inject constructor(private val stockDao: StockDao) {
             emit(Result.Error(500, e.message.toString()))
         }
     }
+
+    suspend fun getLast12BalanceSheetWithRatiosList(stockCode: String): Flow<Result<BalanceSheetWithRatios>> = flow {
+        emit(Result.Loading())
+        try {
+            val last12BalanceSheets = balanceSheetDao.getLast12BalanceSheetsOfStock(stockCode)
+            val last12BalanceSheetRatios = balanceSheetDao.getLast12BalanceSheetRatiosOfStock(stockCode)
+            emit(Result.Success(BalanceSheetWithRatios(last12BalanceSheets, last12BalanceSheetRatios)))
+        } catch (e: Exception) {
+            emit(Result.Error(500, e.message.toString()))
+        }
+    }
+
 }

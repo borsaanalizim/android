@@ -29,7 +29,7 @@ interface StockDao {
     @Query("SELECT * FROM stock_table WHERE stockCode = :stockCode")
     suspend fun getStockWithDates(stockCode: String): StockWithDates?
 
-    @Query("SELECT * FROM date_table WHERE stockCode = :stockCode")
+    @Query("SELECT * FROM date_table WHERE stockCode = :stockCode  ORDER BY period DESC")
     suspend fun getPeriodsOfStockCode(stockCode: String): List<DateEntity>
 
     @Transaction

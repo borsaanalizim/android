@@ -3,187 +3,44 @@ package com.yavuzmobile.borsaanalizim.ui.balancesheet
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.yavuzmobile.borsaanalizim.data.Result
-import com.yavuzmobile.borsaanalizim.data.model.BalanceSheetDateResponse
-import com.yavuzmobile.borsaanalizim.data.model.BalanceSheetResponse
-import com.yavuzmobile.borsaanalizim.data.model.CompanyCard
 import com.yavuzmobile.borsaanalizim.data.repository.local.LocalRepository
-import com.yavuzmobile.borsaanalizim.data.repository.remote.IsYatirimRepository
-import com.yavuzmobile.borsaanalizim.ext.toDoubleOrDefault
-import com.yavuzmobile.borsaanalizim.model.BalanceSheet
+import com.yavuzmobile.borsaanalizim.data.repository.remote.BusinessInvestmentRepository
+import com.yavuzmobile.borsaanalizim.model.BalanceSheetWithRatios
 import com.yavuzmobile.borsaanalizim.model.UiState
-import com.yavuzmobile.borsaanalizim.model.YearMonth
-import com.yavuzmobile.borsaanalizim.util.DateUtil
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import java.util.Locale
 import javax.inject.Inject
 
 @HiltViewModel
 class BalanceSheetViewModel @Inject constructor(
-    private val isYatirimRepository: IsYatirimRepository,
+    private val businessInvestmentRepository: BusinessInvestmentRepository,
     private val localRepository: LocalRepository
 ) : ViewModel() {
 
-    private val _balanceSheetDatesState = MutableStateFlow(UiState<BalanceSheetDateResponse>())
-    val balanceSheetDatesState: StateFlow<UiState<BalanceSheetDateResponse>> = _balanceSheetDatesState.asStateFlow()
-
-    private val _companyCardState = MutableStateFlow(UiState<CompanyCard>())
-    val companyCardState: StateFlow<UiState<CompanyCard>> = _companyCardState.asStateFlow()
-
-    private val _balanceSheetUiState = MutableStateFlow(UiState<List<BalanceSheet>>())
-    val balanceSheetUiState: StateFlow<UiState<List<BalanceSheet>>> = _balanceSheetUiState.asStateFlow()
+    private val _balanceSheetWithRatiosState = MutableStateFlow(UiState<BalanceSheetWithRatios>())
+    val balanceSheetWithRatiosState: StateFlow<UiState<BalanceSheetWithRatios>> = _balanceSheetWithRatiosState.asStateFlow()
 
     fun fetchData(code: String) {
         viewModelScope.launch {
-            async { localRepository.getLastTwelveBalanceSheetDateOfStock(code) }.await().collect {
-                when (it) {
-                    is Result.Loading -> _balanceSheetDatesState.update { state -> state.copy(true) }
-                    is Result.Error -> _balanceSheetDatesState.update { state -> state.copy(false, error = it.error) }
-                    is Result.Success -> _balanceSheetDatesState.update { state -> state.copy(false, data = it.data) }
-                }
-            }
-            val balanceSheetPeriods: List<YearMonth> = DateUtil.getLastTwelvePeriods()
-            isYatirimRepository.getFinancialStatement(
-                stockCode = code,
-                year1 = balanceSheetPeriods[0].year,
-                period1 = balanceSheetPeriods[0].month,
-                year2 = balanceSheetPeriods[1].year,
-                period2 = balanceSheetPeriods[1].month,
-                year3 = balanceSheetPeriods[2].year,
-                period3 = balanceSheetPeriods[2].month,
-                year4 = balanceSheetPeriods[3].year,
-                period4 = balanceSheetPeriods[3].month
-            ).collect { firsResult ->
-                when(firsResult) {
-                    is Result.Loading -> _balanceSheetUiState.update { state -> state.copy(isLoading = true) }
-                    is Result.Error -> _balanceSheetUiState.update { state -> state.copy(isLoading = false, error = firsResult.error) }
+            localRepository.getLastTwelveBalanceSheetDateOfStock(code).collect { resultBalanceSheetDate ->
+                when (resultBalanceSheetDate) {
+                    is Result.Loading -> _balanceSheetWithRatiosState.update { state -> state.copy(true) }
+                    is Result.Error -> _balanceSheetWithRatiosState.update { state -> state.copy(false, error = resultBalanceSheetDate.error) }
                     is Result.Success -> {
-                        isYatirimRepository.getFinancialStatement(
-                            stockCode = code,
-                            year1 = balanceSheetPeriods[4].year,
-                            period1 = balanceSheetPeriods[4].month,
-                            year2 = balanceSheetPeriods[5].year,
-                            period2 = balanceSheetPeriods[5].month,
-                            year3 = balanceSheetPeriods[6].year,
-                            period3 = balanceSheetPeriods[6].month,
-                            year4 = balanceSheetPeriods[7].year,
-                            period4 = balanceSheetPeriods[7].month
-                        ).collect { secondResult ->
-                            when(secondResult) {
-                                is Result.Loading -> _balanceSheetUiState.update { state -> state.copy(isLoading = true) }
-                                is Result.Error -> _balanceSheetUiState.update { state -> state.copy(isLoading = false, error = secondResult.error) }
+                        businessInvestmentRepository.getFinancialStatementList(code, resultBalanceSheetDate.data).collect { resultRemote ->
+                            when (resultRemote) {
+                                is Result.Loading -> _balanceSheetWithRatiosState.update { state -> state.copy(true) }
+                                is Result.Error -> _balanceSheetWithRatiosState.update { state -> state.copy(false, error = resultRemote.error) }
                                 is Result.Success -> {
-                                    isYatirimRepository.getFinancialStatement(
-                                        stockCode = code,
-                                        year1 = balanceSheetPeriods[8].year,
-                                        period1 = balanceSheetPeriods[8].month,
-                                        year2 = balanceSheetPeriods[9].year,
-                                        period2 = balanceSheetPeriods[9].month,
-                                        year3 = balanceSheetPeriods[10].year,
-                                        period3 = balanceSheetPeriods[10].month,
-                                        year4 = balanceSheetPeriods[11].year,
-                                        period4 = balanceSheetPeriods[11].month
-                                    ).collect { thirdResult ->
-                                        when(thirdResult) {
-                                            is Result.Loading -> _balanceSheetUiState.update { state -> state.copy(isLoading = true) }
-                                            is Result.Error -> _balanceSheetUiState.update { state -> state.copy(isLoading = false, error = thirdResult.error) }
-                                            is Result.Success -> {
-                                                val periodItemDescTrList = mutableMapOf<String, String>()
-                                                val periodItemDescEngList = mutableMapOf<String, String>()
-                                                val allPeriods = ArrayList<Map<String, String>>()
-                                                val period1ValueList = mutableMapOf<String, String>()
-                                                val period2ValueList = mutableMapOf<String, String>()
-                                                val period3ValueList = mutableMapOf<String, String>()
-                                                val period4ValueList = mutableMapOf<String, String>()
-                                                val period5ValueList = mutableMapOf<String, String>()
-                                                val period6ValueList = mutableMapOf<String, String>()
-                                                val period7ValueList = mutableMapOf<String, String>()
-                                                val period8ValueList = mutableMapOf<String, String>()
-                                                val period9ValueList = mutableMapOf<String, String>()
-                                                val period10ValueList = mutableMapOf<String, String>()
-                                                val period11ValueList = mutableMapOf<String, String>()
-                                                val period12ValueList = mutableMapOf<String, String>()
-
-                                                firsResult.data.financialStatementList?.forEach { financialStatement ->
-                                                    periodItemDescTrList[financialStatement.itemCode.orEmpty()] = financialStatement.itemDescTr.orEmpty()
-                                                    periodItemDescEngList[financialStatement.itemCode.orEmpty()] = financialStatement.itemDescEng.orEmpty()
-                                                    period1ValueList[financialStatement.itemCode.orEmpty()] = financialStatement.value1.orEmpty()
-                                                    period2ValueList[financialStatement.itemCode.orEmpty()] = financialStatement.value2.orEmpty()
-                                                    period3ValueList[financialStatement.itemCode.orEmpty()] = financialStatement.value3.orEmpty()
-                                                    period4ValueList[financialStatement.itemCode.orEmpty()] = financialStatement.value4.orEmpty()
-                                                }
-
-                                                secondResult.data.financialStatementList?.forEach { financialStatement ->
-                                                    period5ValueList[financialStatement.itemCode.orEmpty()] = financialStatement.value1.orEmpty()
-                                                    period6ValueList[financialStatement.itemCode.orEmpty()] = financialStatement.value2.orEmpty()
-                                                    period7ValueList[financialStatement.itemCode.orEmpty()] = financialStatement.value3.orEmpty()
-                                                    period8ValueList[financialStatement.itemCode.orEmpty()] = financialStatement.value4.orEmpty()
-                                                }
-
-                                                thirdResult.data.financialStatementList?.forEach { financialStatement ->
-                                                    period9ValueList[financialStatement.itemCode.orEmpty()] = financialStatement.value1.orEmpty()
-                                                    period10ValueList[financialStatement.itemCode.orEmpty()] = financialStatement.value2.orEmpty()
-                                                    period11ValueList[financialStatement.itemCode.orEmpty()] = financialStatement.value3.orEmpty()
-                                                    period12ValueList[financialStatement.itemCode.orEmpty()] = financialStatement.value4.orEmpty()
-                                                }
-
-                                                allPeriods.add(period1ValueList)
-                                                allPeriods.add(period2ValueList)
-                                                allPeriods.add(period3ValueList)
-                                                allPeriods.add(period4ValueList)
-                                                allPeriods.add(period5ValueList)
-                                                allPeriods.add(period6ValueList)
-                                                allPeriods.add(period7ValueList)
-                                                allPeriods.add(period8ValueList)
-                                                allPeriods.add(period9ValueList)
-                                                allPeriods.add(period10ValueList)
-                                                allPeriods.add(period11ValueList)
-                                                allPeriods.add(period12ValueList)
-
-                                                val listData = allPeriods.map { period ->
-                                                    BalanceSheetResponse(
-                                                        period["1A"],
-                                                        period["1AK"],
-                                                        period["2OA"],
-                                                        period["2N"],
-                                                        period["2O"],
-                                                        period["2BA"],
-                                                        period["2AA"],
-                                                        period["1AA"],
-                                                        period["1BC"],
-                                                        period["3H"],
-                                                        period["3C"],
-                                                        period["3D"],
-                                                        period["2OCE"],
-                                                        period["2OCF"],
-                                                        period["3DF"],
-                                                        period["4B"],
-                                                        period["3CAD"],
-                                                        period["3IB"],
-                                                        period["3DA"],
-                                                        period["3CA"],
-                                                        period["3DA"],
-                                                        period["3DC"],
-                                                        period["4CAB"],
-                                                        period["2A"],
-                                                        period["2B"]
-                                                    )
-                                                }
-
-                                                val mappedBalanceSheetPeriods = balanceSheetPeriods.map { mappedPeriod -> "${mappedPeriod.year}/${mappedPeriod.month}" }
-
-                                                val companyCard = CompanyCard(code, mappedBalanceSheetPeriods, listData)
-                                                _companyCardState.update { state -> state.copy(isLoading = false, data = companyCard) }
-                                                balanceSheetCalculations(companyCard)
-
-                                            }
+                                    localRepository.getLast12BalanceSheetWithRatiosList(code).collect { resultLocal ->
+                                        when(resultLocal) {
+                                            is Result.Loading -> _balanceSheetWithRatiosState.update { state -> state.copy(true) }
+                                            is Result.Error -> _balanceSheetWithRatiosState.update { state -> state.copy(false, error = resultLocal.error) }
+                                            is Result.Success -> _balanceSheetWithRatiosState.update { state -> state.copy(false, data = resultLocal.data) }
                                         }
                                     }
                                 }
@@ -192,78 +49,7 @@ class BalanceSheetViewModel @Inject constructor(
                     }
                 }
             }
+
         }
     }
-
-    private suspend fun balanceSheetCalculations(companyCard: CompanyCard?) = withContext(Dispatchers.IO) {
-        val balanceSheetList = ArrayList<BalanceSheet>()
-        companyCard?.balanceSheetResponses?.forEachIndexed { index, balanceSheet ->
-            val period = companyCard.period!![index]
-            val periodPrice = balanceSheetDatesState.value.data?.dates?.find { datePeriod -> datePeriod.period == period }?.let { datePeriodNotNull -> datePeriodNotNull.price.toString().toDoubleOrDefault() } ?: kotlin.run { if (index == 0) balanceSheetDatesState.value.data?.lastPrice.toString().toDoubleOrDefault() else null}
-            if (periodPrice == null) return@forEachIndexed
-            val marketValue = balanceSheet.paidCapital.toDoubleOrDefault() * periodPrice
-            val bookValue = balanceSheet.equitiesOfParentCompany.toDoubleOrDefault()
-            val eps = balanceSheet.previousYearsProfitAndLoss.toDoubleOrDefault() / balanceSheet.paidCapital.toDoubleOrDefault()
-            val netDebt = (balanceSheet.financialDebtsShort.toDoubleOrDefault() + balanceSheet.financialDebtsLong.toDoubleOrDefault()) - (balanceSheet.cashAndCashEquivalents.toDoubleOrDefault() + balanceSheet.financialInvestments.toDoubleOrDefault())
-            val companyValue = marketValue - netDebt
-            val ebitda = balanceSheet.grossProfitAndLoss.toDoubleOrDefault() + balanceSheet.generalAndAdministrativeExpenses.toDoubleOrDefault() + balanceSheet.marketingSalesAndDistributionExpenses.toDoubleOrDefault() + balanceSheet.depreciationAndAmortization.toDoubleOrDefault()
-            val netOperatingProfitAndLoss = balanceSheet.netOperatingProfitAndLoss.toDoubleOrDefault()
-            val netSales = balanceSheet.salesIncome.toDoubleOrDefault()
-
-            val isNan = balanceSheet.paidCapital.isNullOrEmpty() || balanceSheet.paidCapital == "0"
-
-            if (index == 0 && isNan) {
-                return@forEachIndexed
-            }
-
-            if (index == 0 || (index == 1 && !isNan && balanceSheetList.find { it.period == "Bugün" } == null)) {
-                val todayPeriod = "Bugün"
-                val todayPeriodPrice = balanceSheetDatesState.value.data?.lastPrice.toString().toDoubleOrDefault()
-                val todayMarketValue = balanceSheet.paidCapital.toDoubleOrDefault() * todayPeriodPrice
-                val todayCompanyValue = todayMarketValue - netDebt
-
-                val todayMarketBookAndBookValue = (todayMarketValue / bookValue)
-                val todayPriceAndEarning = (todayPeriodPrice / eps)
-                val todayCompanyValueAndEbitda = (todayCompanyValue / ebitda)
-                val todayMarketValueAndNetOperatingProfit = (todayMarketValue / netOperatingProfitAndLoss)
-                val todayCompanyValueAndNetSales = (todayCompanyValue / netSales)
-                val todayNetOperatingProfitAndMarketValue = (netOperatingProfitAndLoss / todayMarketValue) * 100
-
-                balanceSheetList.add(
-                    BalanceSheet(
-                        todayPeriod,
-                        todayPeriodPrice,
-                        String.format(Locale.getDefault(), "%.2f", todayMarketBookAndBookValue),
-                        String.format(Locale.getDefault(), "%.2f", todayPriceAndEarning),
-                        String.format(Locale.getDefault(), "%.2f", todayCompanyValueAndEbitda),
-                        String.format(Locale.getDefault(), "%.2f", todayMarketValueAndNetOperatingProfit),
-                        String.format(Locale.getDefault(), "%.2f", todayCompanyValueAndNetSales),
-                        String.format(Locale.getDefault(), "%.2f", todayNetOperatingProfitAndMarketValue)
-                    )
-                )
-            }
-
-            val marketBookAndBookValue = (marketValue / bookValue)
-            val priceAndEarning = (periodPrice / eps)
-            val companyValueAndEbitda = (companyValue / ebitda)
-            val marketValueAndNetOperatingProfit = (marketValue / netOperatingProfitAndLoss)
-            val companyValueAndNetSales = (companyValue / netSales)
-            val netOperatingProfitAndMarketValue = (netOperatingProfitAndLoss / marketValue) * 100
-
-            balanceSheetList.add(
-                BalanceSheet(
-                    period,
-                    periodPrice,
-                    String.format(Locale.getDefault(), "%.2f", marketBookAndBookValue),
-                    String.format(Locale.getDefault(), "%.2f", priceAndEarning),
-                    String.format(Locale.getDefault(), "%.2f", companyValueAndEbitda),
-                    String.format(Locale.getDefault(), "%.2f", marketValueAndNetOperatingProfit),
-                    String.format(Locale.getDefault(), "%.2f", companyValueAndNetSales),
-                    String.format(Locale.getDefault(), "%.2f", netOperatingProfitAndMarketValue)
-                )
-            )
-        }
-        _balanceSheetUiState.update { state -> state.copy(isLoading = false, data = balanceSheetList) }
-    }
-
 }

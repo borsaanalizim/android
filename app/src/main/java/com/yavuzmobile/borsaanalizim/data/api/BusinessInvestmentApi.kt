@@ -6,7 +6,7 @@ import retrofit2.Response
 import retrofit2.http.GET
 import retrofit2.http.Query
 
-interface IsYatirimApi {
+interface BusinessInvestmentApi {
 
     // ?companyCode=THYAO&exchange=TRY&financialGroup=XI_29&year1=2024&period1=6&year2=2024&period2=3&year3=2023&period3=12&year4=2023&period4=3
     @GET("_layouts/15/IsYatirim.Website/Common/Data.aspx/MaliTablo")

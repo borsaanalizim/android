@@ -41,8 +41,7 @@ fun BalanceSheetScreen(
     viewModel: BalanceSheetViewModel = hiltViewModel()
 ) {
 
-    val companyCardState by viewModel.companyCardState.collectAsState()
-    val balanceSheetUiState by viewModel.balanceSheetUiState.collectAsState()
+    val balanceSheetWithRatiosUiState by viewModel.balanceSheetWithRatiosState.collectAsState()
 
     LaunchedEffect(code) {
         viewModel.fetchData(code)
@@ -50,49 +49,48 @@ fun BalanceSheetScreen(
 
     BaseScreen(navController, Modifier.fillMaxSize(), code) {
         Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
-            when(companyCardState.data) {
-                null -> {}
-                else -> {
-                    Column(
-                        modifier = Modifier
-                            .padding(vertical = 16.dp)
-                            .fillMaxWidth(),
-                        verticalArrangement = Arrangement.Center,
-                        horizontalAlignment = Alignment.CenterHorizontally) {
+            when(balanceSheetWithRatiosUiState.isLoading) {
+                true -> CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
+                false -> {
+                    balanceSheetWithRatiosUiState.error?.let { error ->
+                        Text(text = "Hata: $error", color = MaterialTheme.colorScheme.error)
+                    }
+                    balanceSheetWithRatiosUiState.data?.let { balanceSheetWithRatios ->
+                        Column(modifier = Modifier.padding(vertical = 16.dp).fillMaxWidth(), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
+                            val currentAssetList = mutableListOf<Double>()
+                            val longTermAssetList = mutableListOf<Double>()
+                            val equitiesList = mutableListOf<Double>()
+                            val salesIncomeList = mutableListOf<Double>()
+                            val grossProfitAndLossList = mutableListOf<Double>()
+                            val netOperatingProfitAndLossList= mutableListOf<Double>()
+                            val netProfitAndLossPeriodList= mutableListOf<Double>()
+                            val cashAndCashEquivalentsList = mutableListOf<Double>()
+                            val financialInvestmentsList = mutableListOf<Double>()
+                            val financialDebtsShortList = mutableListOf<Double>()
+                            val financialDebtsLongList = mutableListOf<Double>()
+                            val shortTermLiabilitiesList = mutableListOf<Double>()
+                            val longTermLiabilitiesList = mutableListOf<Double>()
 
-                        val currentAssetList = mutableListOf<Double>()
-                        val longTermAssetList = mutableListOf<Double>()
-                        val equitiesList = mutableListOf<Double>()
-                        val salesIncomeList = mutableListOf<Double>()
-                        val grossProfitAndLossList = mutableListOf<Double>()
-                        val netOperatingProfitAndLossList= mutableListOf<Double>()
-                        val netProfitAndLossPeriodList= mutableListOf<Double>()
-                        val cashAndCashEquivalentsList = mutableListOf<Double>()
-                        val financialInvestmentsList = mutableListOf<Double>()
-                        val financialDebtsShortList = mutableListOf<Double>()
-                        val financialDebtsLongList = mutableListOf<Double>()
-                        val shortTermLiabilitiesList = mutableListOf<Double>()
-                        val longTermLiabilitiesList = mutableListOf<Double>()
+                            val currentAssetGraphBarDataList = mutableListOf<Float>()
+                            val longTermAssetGraphBarDataList = mutableListOf<Float>()
+                            val equitiesGraphBarDataList = mutableListOf<Float>()
+                            val salesIncomeGraphBarDataList = mutableListOf<Float>()
+                            val grossProfitAndLossGraphBarDataList = mutableListOf<Float>()
+                            val netOperatingProfitAndLossGraphBarDataList = mutableListOf<Float>()
+                            val netProfitAndLossPeriodGraphBarDataList = mutableListOf<Float>()
+                            val cashAndCashEquivalentsGraphBarDataList = mutableListOf<Float>()
+                            val financialInvestmentsGraphBarDataList = mutableListOf<Float>()
+                            val financialDebtsShortGraphBarDataList = mutableListOf<Float>()
+                            val financialDebtsLongGraphBarDataList = mutableListOf<Float>()
+                            val shortTermLiabilitiesGraphBarDataList = mutableListOf<Float>()
+                            val longTermLiabilitiesGraphBarDataList = mutableListOf<Float>()
 
-                        val currentAssetGraphBarDataList = mutableListOf<Float>()
-                        val longTermAssetGraphBarDataList = mutableListOf<Float>()
-                        val equitiesGraphBarDataList = mutableListOf<Float>()
-                        val salesIncomeGraphBarDataList = mutableListOf<Float>()
-                        val grossProfitAndLossGraphBarDataList = mutableListOf<Float>()
-                        val netOperatingProfitAndLossGraphBarDataList = mutableListOf<Float>()
-                        val netProfitAndLossPeriodGraphBarDataList = mutableListOf<Float>()
-                        val cashAndCashEquivalentsGraphBarDataList = mutableListOf<Float>()
-                        val financialInvestmentsGraphBarDataList = mutableListOf<Float>()
-                        val financialDebtsShortGraphBarDataList = mutableListOf<Float>()
-                        val financialDebtsLongGraphBarDataList = mutableListOf<Float>()
-                        val shortTermLiabilitiesGraphBarDataList = mutableListOf<Float>()
-                        val longTermLiabilitiesGraphBarDataList = mutableListOf<Float>()
+                            val periodList = mutableListOf<String>()
 
-                        val periodList = mutableListOf<String>()
 
-                        companyCardState.data?.let { companyCard ->
-                            companyCard.balanceSheetResponses?.forEachIndexed { index, balanceSheetResponse ->
-                                if (balanceSheetResponse.currentAssets.isNullOrEmpty()) return@forEachIndexed
+
+                            balanceSheetWithRatios.balanceSheetList.forEach { balanceSheetResponse ->
+                                if (balanceSheetResponse.currentAssets.isEmpty()) return@forEach
                                 currentAssetList.add(balanceSheetResponse.currentAssets.toDoubleOrDefault())
                                 longTermAssetList.add(balanceSheetResponse.longTermAssets.toDoubleOrDefault())
                                 equitiesList.add(balanceSheetResponse.equities.toDoubleOrDefault())
@@ -107,92 +105,81 @@ fun BalanceSheetScreen(
                                 shortTermLiabilitiesList.add(balanceSheetResponse.shortTermLiabilities.toDoubleOrDefault())
                                 longTermLiabilitiesList.add(balanceSheetResponse.longTermLiabilities.toDoubleOrDefault())
 
-                                periodList.add(companyCard.period?.get(index).orEmpty())
+                                periodList.add(balanceSheetResponse.period)
                             }
+
+                            currentAssetList.forEachIndexed { index, value ->
+                                currentAssetGraphBarDataList.add(index = index, element = value.toFloat()/currentAssetList.max().toFloat())
+                            }
+                            longTermAssetList.forEachIndexed { index, value ->
+                                longTermAssetGraphBarDataList.add(index = index, element = value.toFloat()/longTermAssetList.max().toFloat())
+                            }
+                            equitiesList.forEachIndexed { index, value ->
+                                equitiesGraphBarDataList.add(index = index, element = value.toFloat()/equitiesList.max().toFloat())
+                            }
+                            salesIncomeList.forEachIndexed { index, value ->
+                                salesIncomeGraphBarDataList.add(index = index, element = value.toFloat()/salesIncomeList.max().toFloat())
+                            }
+                            grossProfitAndLossList.forEachIndexed { index, value ->
+                                grossProfitAndLossGraphBarDataList.add(index = index, element = value.toFloat()/grossProfitAndLossList.max().toFloat())
+                            }
+                            netOperatingProfitAndLossList.forEachIndexed { index, value ->
+                                netOperatingProfitAndLossGraphBarDataList.add(index = index, element = value.toFloat()/netOperatingProfitAndLossList.max().toFloat())
+                            }
+                            netProfitAndLossPeriodList.forEachIndexed { index, value ->
+                                netProfitAndLossPeriodGraphBarDataList.add(index = index, element = value.toFloat()/netProfitAndLossPeriodList.max().toFloat())
+                            }
+                            cashAndCashEquivalentsList.forEachIndexed { index, value ->
+                                cashAndCashEquivalentsGraphBarDataList.add(index = index, element = value.toFloat()/cashAndCashEquivalentsList.max().toFloat())
+                            }
+                            financialInvestmentsList.forEachIndexed { index, value ->
+                                financialInvestmentsGraphBarDataList.add(index = index, element = value.toFloat()/financialInvestmentsList.max().toFloat())
+                            }
+                            financialDebtsShortList.forEachIndexed { index, value ->
+                                financialDebtsShortGraphBarDataList.add(index = index, element = value.toFloat()/financialDebtsShortList.max().toFloat())
+                            }
+                            financialDebtsLongList.forEachIndexed { index, value ->
+                                financialDebtsLongGraphBarDataList.add(index = index, element = value.toFloat()/financialDebtsLongList.max().toFloat())
+                            }
+                            shortTermLiabilitiesList.forEachIndexed { index, value ->
+                                shortTermLiabilitiesGraphBarDataList.add(index = index, element = value.toFloat()/shortTermLiabilitiesList.max().toFloat())
+                            }
+                            longTermLiabilitiesList.forEachIndexed { index, value ->
+                                longTermLiabilitiesGraphBarDataList.add(index = index, element = value.toFloat()/longTermLiabilitiesList.max().toFloat())
+                            }
+
+                            BarGraphWizard("DÖNEN VARLIKLAR", currentAssetGraphBarDataList, periodList, currentAssetList)
+                            BarGraphWizard("DURAN VARLIKLAR", longTermAssetGraphBarDataList, periodList, longTermAssetList)
+                            BarGraphWizard("ÖZKAYNAKLAR", equitiesGraphBarDataList, periodList, equitiesList)
+                            BarGraphWizard("SATIŞ GELİRLERİ", salesIncomeGraphBarDataList, periodList, salesIncomeList)
+                            BarGraphWizard("BRÜT KAR (ZARAR)", grossProfitAndLossGraphBarDataList, periodList, grossProfitAndLossList)
+                            BarGraphWizard("NET FAALİYET KAR/ZARARI", netOperatingProfitAndLossGraphBarDataList, periodList, netOperatingProfitAndLossList)
+                            BarGraphWizard("DÖNEM NET KAR/ZARAR", netProfitAndLossPeriodGraphBarDataList, periodList, netProfitAndLossPeriodList)
+                            BarGraphWizard("NAKİT VE NAKİT BENZERLERİ", cashAndCashEquivalentsGraphBarDataList, periodList, cashAndCashEquivalentsList)
+                            BarGraphWizard("FİNANSAL YATIRIMLAR", financialInvestmentsGraphBarDataList, periodList, financialInvestmentsList)
+                            BarGraphWizard("K.V. FİNANSAL BORÇLAR", financialDebtsShortGraphBarDataList, periodList, financialDebtsShortList)
+                            BarGraphWizard("U.V. FİNANSAL BORÇLAR", financialDebtsLongGraphBarDataList, periodList, financialDebtsLongList)
+                            BarGraphWizard("KISA VADELİ YÜKÜMLÜLÜKLER", shortTermLiabilitiesGraphBarDataList, periodList, shortTermLiabilitiesList)
+                            BarGraphWizard("UZUN VADELİ YÜKÜMLÜLÜKLER", longTermLiabilitiesGraphBarDataList, periodList, longTermLiabilitiesList)
                         }
 
-                        currentAssetList.forEachIndexed { index, value ->
-                            currentAssetGraphBarDataList.add(index = index, element = value.toFloat()/currentAssetList.max().toFloat())
-                        }
-                        longTermAssetList.forEachIndexed { index, value ->
-                            longTermAssetGraphBarDataList.add(index = index, element = value.toFloat()/longTermAssetList.max().toFloat())
-                        }
-                        equitiesList.forEachIndexed { index, value ->
-                            equitiesGraphBarDataList.add(index = index, element = value.toFloat()/equitiesList.max().toFloat())
-                        }
-                        salesIncomeList.forEachIndexed { index, value ->
-                            salesIncomeGraphBarDataList.add(index = index, element = value.toFloat()/salesIncomeList.max().toFloat())
-                        }
-                        grossProfitAndLossList.forEachIndexed { index, value ->
-                            grossProfitAndLossGraphBarDataList.add(index = index, element = value.toFloat()/grossProfitAndLossList.max().toFloat())
-                        }
-                        netOperatingProfitAndLossList.forEachIndexed { index, value ->
-                            netOperatingProfitAndLossGraphBarDataList.add(index = index, element = value.toFloat()/netOperatingProfitAndLossList.max().toFloat())
-                        }
-                        netProfitAndLossPeriodList.forEachIndexed { index, value ->
-                            netProfitAndLossPeriodGraphBarDataList.add(index = index, element = value.toFloat()/netProfitAndLossPeriodList.max().toFloat())
-                        }
-                        cashAndCashEquivalentsList.forEachIndexed { index, value ->
-                            cashAndCashEquivalentsGraphBarDataList.add(index = index, element = value.toFloat()/cashAndCashEquivalentsList.max().toFloat())
-                        }
-                        financialInvestmentsList.forEachIndexed { index, value ->
-                            financialInvestmentsGraphBarDataList.add(index = index, element = value.toFloat()/financialInvestmentsList.max().toFloat())
-                        }
-                        financialDebtsShortList.forEachIndexed { index, value ->
-                            financialDebtsShortGraphBarDataList.add(index = index, element = value.toFloat()/financialDebtsShortList.max().toFloat())
-                        }
-                        financialDebtsLongList.forEachIndexed { index, value ->
-                            financialDebtsLongGraphBarDataList.add(index = index, element = value.toFloat()/financialDebtsLongList.max().toFloat())
-                        }
-                        shortTermLiabilitiesList.forEachIndexed { index, value ->
-                            shortTermLiabilitiesGraphBarDataList.add(index = index, element = value.toFloat()/shortTermLiabilitiesList.max().toFloat())
-                        }
-                        longTermLiabilitiesList.forEachIndexed { index, value ->
-                            longTermLiabilitiesGraphBarDataList.add(index = index, element = value.toFloat()/longTermLiabilitiesList.max().toFloat())
-                        }
+                        val marketBookAndBookValueMin = balanceSheetWithRatios.balanceSheetRatios.minOfOrNull { it.marketBookAndBookValue.cleanedNumberFormat().toDoubleOrDefault() } ?: 0.0
+                        val marketBookAndBookValueMax = balanceSheetWithRatios.balanceSheetRatios.maxOfOrNull { it.marketBookAndBookValue.cleanedNumberFormat().toDoubleOrDefault() } ?: 1.0
 
-                        BarGraphWizard("DÖNEN VARLIKLAR", currentAssetGraphBarDataList, periodList, currentAssetList)
-                        BarGraphWizard("DURAN VARLIKLAR", longTermAssetGraphBarDataList, periodList, longTermAssetList)
-                        BarGraphWizard("ÖZKAYNAKLAR", equitiesGraphBarDataList, periodList, equitiesList)
-                        BarGraphWizard("SATIŞ GELİRLERİ", salesIncomeGraphBarDataList, periodList, salesIncomeList)
-                        BarGraphWizard("BRÜT KAR (ZARAR)", grossProfitAndLossGraphBarDataList, periodList, grossProfitAndLossList)
-                        BarGraphWizard("NET FAALİYET KAR/ZARARI", netOperatingProfitAndLossGraphBarDataList, periodList, netOperatingProfitAndLossList)
-                        BarGraphWizard("DÖNEM NET KAR/ZARAR", netProfitAndLossPeriodGraphBarDataList, periodList, netProfitAndLossPeriodList)
-                        BarGraphWizard("NAKİT VE NAKİT BENZERLERİ", cashAndCashEquivalentsGraphBarDataList, periodList, cashAndCashEquivalentsList)
-                        BarGraphWizard("FİNANSAL YATIRIMLAR", financialInvestmentsGraphBarDataList, periodList, financialInvestmentsList)
-                        BarGraphWizard("K.V. FİNANSAL BORÇLAR", financialDebtsShortGraphBarDataList, periodList, financialDebtsShortList)
-                        BarGraphWizard("U.V. FİNANSAL BORÇLAR", financialDebtsLongGraphBarDataList, periodList, financialDebtsLongList)
-                        BarGraphWizard("KISA VADELİ YÜKÜMLÜLÜKLER", shortTermLiabilitiesGraphBarDataList, periodList, shortTermLiabilitiesList)
-                        BarGraphWizard("UZUN VADELİ YÜKÜMLÜLÜKLER", longTermLiabilitiesGraphBarDataList, periodList, longTermLiabilitiesList)
-                    }
-                }
-            }
-            when (balanceSheetUiState.isLoading) {
-                true -> CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
-                false -> {
-                    balanceSheetUiState.error?.let { error ->
-                        Text(text = "Hata: $error", color = MaterialTheme.colorScheme.error)
-                    }
+                        val priceAndEarningMin = balanceSheetWithRatios.balanceSheetRatios.minOfOrNull { it.priceAndEarning.cleanedNumberFormat().toDoubleOrDefault() } ?: 0.0
+                        val priceAndEarningMax = balanceSheetWithRatios.balanceSheetRatios.maxOfOrNull { it.priceAndEarning.cleanedNumberFormat().toDoubleOrDefault() } ?: 1.0
 
-                    balanceSheetUiState.data?.let { balanceSheets ->
+                        val companyValueAndEbitdaMin = balanceSheetWithRatios.balanceSheetRatios.minOfOrNull { it.companyValueAndEbitda.cleanedNumberFormat().toDoubleOrDefault() } ?: 0.0
+                        val companyValueAndEbitdaMax = balanceSheetWithRatios.balanceSheetRatios.maxOfOrNull { it.companyValueAndEbitda.cleanedNumberFormat().toDoubleOrDefault() } ?: 1.0
 
-                        val marketBookAndBookValueMin = balanceSheets.minOfOrNull { it.marketBookAndBookValue.cleanedNumberFormat().toDoubleOrDefault() } ?: 0.0
-                        val marketBookAndBookValueMax = balanceSheets.maxOfOrNull { it.marketBookAndBookValue.cleanedNumberFormat().toDoubleOrDefault() } ?: 1.0
+                        val marketValueAndNetOperatingProfitMin = balanceSheetWithRatios.balanceSheetRatios.minOfOrNull { it.marketValueAndNetOperatingProfit.cleanedNumberFormat().toDoubleOrDefault() } ?: 0.0
+                        val marketValueAndNetOperatingProfitMax = balanceSheetWithRatios.balanceSheetRatios.maxOfOrNull { it.marketValueAndNetOperatingProfit.cleanedNumberFormat().toDoubleOrDefault() } ?: 1.0
 
-                        val priceAndEarningMin = balanceSheets.minOfOrNull { it.priceAndEarning.cleanedNumberFormat().toDoubleOrDefault() } ?: 0.0
-                        val priceAndEarningMax = balanceSheets.maxOfOrNull { it.priceAndEarning.cleanedNumberFormat().toDoubleOrDefault() } ?: 1.0
+                        val companyValueAndNetSalesMin = balanceSheetWithRatios.balanceSheetRatios.minOfOrNull { it.companyValueAndNetSales.cleanedNumberFormat().toDoubleOrDefault() } ?: 0.0
+                        val companyValueAndNetSalesMax = balanceSheetWithRatios.balanceSheetRatios.maxOfOrNull { it.companyValueAndNetSales.cleanedNumberFormat().toDoubleOrDefault() } ?: 1.0
 
-                        val companyValueAndEbitdaMin = balanceSheets.minOfOrNull { it.companyValueAndEbitda.cleanedNumberFormat().toDoubleOrDefault() } ?: 0.0
-                        val companyValueAndEbitdaMax = balanceSheets.maxOfOrNull { it.companyValueAndEbitda.cleanedNumberFormat().toDoubleOrDefault() } ?: 1.0
-
-                        val marketValueAndNetOperatingProfitMin = balanceSheets.minOfOrNull { it.marketValueAndNetOperatingProfit.cleanedNumberFormat().toDoubleOrDefault() } ?: 0.0
-                        val marketValueAndNetOperatingProfitMax = balanceSheets.maxOfOrNull { it.marketValueAndNetOperatingProfit.cleanedNumberFormat().toDoubleOrDefault() } ?: 1.0
-
-                        val companyValueAndNetSalesMin = balanceSheets.minOfOrNull { it.companyValueAndNetSales.cleanedNumberFormat().toDoubleOrDefault() } ?: 0.0
-                        val companyValueAndNetSalesMax = balanceSheets.maxOfOrNull { it.companyValueAndNetSales.cleanedNumberFormat().toDoubleOrDefault() } ?: 1.0
-
-                        val netOperatingProfitAndMarketValueMin = balanceSheets.minOfOrNull { it.netOperatingProfitAndMarketValue.cleanedNumberFormat().toDoubleOrDefault() } ?: 0.0
-                        val netOperatingProfitAndMarketValueMax = balanceSheets.maxOfOrNull { it.netOperatingProfitAndMarketValue.cleanedNumberFormat().toDoubleOrDefault() } ?: 1.0
+                        val netOperatingProfitAndMarketValueMin = balanceSheetWithRatios.balanceSheetRatios.minOfOrNull { it.netOperatingProfitAndMarketValue.cleanedNumberFormat().toDoubleOrDefault() } ?: 0.0
+                        val netOperatingProfitAndMarketValueMax = balanceSheetWithRatios.balanceSheetRatios.maxOfOrNull { it.netOperatingProfitAndMarketValue.cleanedNumberFormat().toDoubleOrDefault() } ?: 1.0
 
                         Row(
                             modifier = Modifier
@@ -206,7 +193,7 @@ fun BalanceSheetScreen(
                                     .padding(horizontal = 4.dp)
                             ) {
                                 Text("DÖNEM", fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
-                                balanceSheets.forEach { balanceSheet ->
+                                balanceSheetWithRatios.balanceSheetRatios.forEach { balanceSheet ->
                                     if (balanceSheet.marketBookAndBookValue.cleanedNumberFormat().toDoubleOrDefault().isNaN()) {
                                         return@forEach
                                     }
@@ -224,8 +211,8 @@ fun BalanceSheetScreen(
                                     textAlign = TextAlign.Center,
                                     modifier = Modifier.fillMaxWidth()
                                 )
-                                balanceSheets.forEach { balanceSheet ->
-                                    Text(String.format(Locale.getDefault(), "%.2f", balanceSheet.price), modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
+                                balanceSheetWithRatios.balanceSheetRatios.forEach { balanceSheet ->
+                                    Text(balanceSheet.price, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
                                 }
                             }
                             Column(
@@ -239,7 +226,7 @@ fun BalanceSheetScreen(
                                     textAlign = TextAlign.Center,
                                     modifier = Modifier.fillMaxWidth()
                                 )
-                                balanceSheets.forEach { balanceSheet ->
+                                balanceSheetWithRatios.balanceSheetRatios.forEach { balanceSheet ->
                                     if (balanceSheet.marketBookAndBookValue.cleanedNumberFormat().toDoubleOrDefault().isNaN()) {
                                         return@forEach
                                     }
@@ -266,7 +253,7 @@ fun BalanceSheetScreen(
                                     textAlign = TextAlign.Center,
                                     modifier = Modifier.fillMaxWidth()
                                 )
-                                balanceSheets.forEach { balanceSheet ->
+                                balanceSheetWithRatios.balanceSheetRatios.forEach { balanceSheet ->
                                     if (balanceSheet.marketBookAndBookValue.cleanedNumberFormat().toDoubleOrDefault().isNaN()) {
                                         return@forEach
                                     }
@@ -294,7 +281,7 @@ fun BalanceSheetScreen(
                                     textAlign = TextAlign.Center,
                                     modifier = Modifier.fillMaxWidth()
                                 )
-                                balanceSheets.forEach { balanceSheet ->
+                                balanceSheetWithRatios.balanceSheetRatios.forEach { balanceSheet ->
                                     if (balanceSheet.marketBookAndBookValue.cleanedNumberFormat().toDoubleOrDefault().isNaN()) {
                                         return@forEach
                                     }
@@ -322,7 +309,7 @@ fun BalanceSheetScreen(
                                     textAlign = TextAlign.Center,
                                     modifier = Modifier.fillMaxWidth()
                                 )
-                                balanceSheets.forEach { balanceSheet ->
+                                balanceSheetWithRatios.balanceSheetRatios.forEach { balanceSheet ->
                                     if (balanceSheet.marketBookAndBookValue.cleanedNumberFormat().toDoubleOrDefault().isNaN()) {
                                         return@forEach
                                     }
@@ -350,7 +337,7 @@ fun BalanceSheetScreen(
                                     textAlign = TextAlign.Center,
                                     modifier = Modifier.fillMaxWidth()
                                 )
-                                balanceSheets.forEach { balanceSheet ->
+                                balanceSheetWithRatios.balanceSheetRatios.forEach { balanceSheet ->
                                     if (balanceSheet.marketBookAndBookValue.cleanedNumberFormat().toDoubleOrDefault().isNaN()) {
                                         return@forEach
                                     }
@@ -378,7 +365,7 @@ fun BalanceSheetScreen(
                                     textAlign = TextAlign.Center,
                                     modifier = Modifier.fillMaxWidth()
                                 )
-                                balanceSheets.forEach { balanceSheet ->
+                                balanceSheetWithRatios.balanceSheetRatios.forEach { balanceSheet ->
                                     if (balanceSheet.marketBookAndBookValue.cleanedNumberFormat().toDoubleOrDefault().isNaN()) {
                                         return@forEach
                                     }

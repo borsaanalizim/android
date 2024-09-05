@@ -1,4 +1,7 @@
-package com.yavuzmobile.borsaanalizim.data.model
+package com.yavuzmobile.borsaanalizim.data.local.entity
+
+import androidx.room.Entity
+import androidx.room.PrimaryKey
 
 /**
  * @param currentAssets Dönen Varlıklar - 1A
@@ -27,31 +30,36 @@ package com.yavuzmobile.borsaanalizim.data.model
  * @param shortTermLiabilities Kısa Vadeli Yükümlülükler -2A
  * @param longTermLiabilities Uzun Vadeli Yükümlülükler - 2B
  */
-data class BalanceSheetResponse(
-    val period: String?,
-    val currentAssets: String?,
-    val longTermAssets: String?,
-    val paidCapital : String?,
-    val equities: String?,
-    val equitiesOfParentCompany: String?,
-    val financialDebtsLong: String?,
-    val financialDebtsShort: String?,
-    val cashAndCashEquivalents: String?,
-    val financialInvestments: String?,
-    val netOperatingProfitAndLoss: String?,
-    val salesIncome: String?,
-    val grossProfitAndLoss: String?,
-    val previousYearsProfitAndLoss: String?,
-    val netProfitAndLossPeriod: String?,
-    val operatingProfitAndLoss: String?,
-    val depreciationExpenses: String?,
-    val otherExpenses: String?,
-    val periodTaxIncomeAndExpense: String?,
-    val generalAndAdministrativeExpenses: String?,
-    val costOfSales: String?,
-    val marketingSalesAndDistributionExpenses: String?,
-    val researchAndDevelopmentExpenses: String?,
-    val depreciationAndAmortization: String?,
-    val shortTermLiabilities: String?,
-    val longTermLiabilities: String?,
+
+@Entity(tableName = "balance_sheet_table")
+data class BalanceSheetEntity(
+    @PrimaryKey(autoGenerate = true)
+    val id: Long = 0,
+    val stockCode: String,
+    val period: String,
+    val currentAssets: String,
+    val longTermAssets: String,
+    val paidCapital : String,
+    val equities: String,
+    val equitiesOfParentCompany: String,
+    val financialDebtsLong: String,
+    val financialDebtsShort: String,
+    val cashAndCashEquivalents: String,
+    val financialInvestments: String,
+    val netOperatingProfitAndLoss: String,
+    val salesIncome: String,
+    val grossProfitAndLoss: String,
+    val previousYearsProfitAndLoss: String,
+    val netProfitAndLossPeriod: String,
+    val operatingProfitAndLoss: String,
+    val depreciationExpenses: String,
+    val otherExpenses: String,
+    val periodTaxIncomeAndExpense: String,
+    val generalAndAdministrativeExpenses: String,
+    val costOfSales: String,
+    val marketingSalesAndDistributionExpenses: String,
+    val researchAndDevelopmentExpenses: String,
+    val depreciationAndAmortization: String,
+    val shortTermLiabilities: String,
+    val longTermLiabilities: String,
 )
