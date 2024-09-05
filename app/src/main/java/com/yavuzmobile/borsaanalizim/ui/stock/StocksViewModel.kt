@@ -2,9 +2,9 @@ package com.yavuzmobile.borsaanalizim.ui.stock
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.yavuzmobile.borsaanalizim.data.repository.remote.IsYatirimRepository
 import com.yavuzmobile.borsaanalizim.data.Result
 import com.yavuzmobile.borsaanalizim.data.model.Stock
+import com.yavuzmobile.borsaanalizim.data.repository.local.LocalRepository
 import com.yavuzmobile.borsaanalizim.model.UiState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -18,7 +18,7 @@ import javax.inject.Inject
 
 @HiltViewModel
 class StocksViewModel @Inject constructor(
-    private val repository: IsYatirimRepository
+    private val localRepository: LocalRepository
 ) : ViewModel() {
 
     private val _stocksUiState = MutableStateFlow(UiState<Stock>())
@@ -40,7 +40,7 @@ class StocksViewModel @Inject constructor(
 
     fun fetchStocks() {
         viewModelScope.launch {
-            repository.fetchStocks().collect {
+            localRepository.getStocks().collect {
                 when(it) {
                     is Result.Loading -> _stocksUiState.update { state -> state.copy(true) }
                     is Result.Error -> _stocksUiState.update { state -> state.copy(false, error = it.error) }
@@ -54,7 +54,7 @@ class StocksViewModel @Inject constructor(
         viewModelScope.launch {
             _isRefreshing.value = true
             try {
-                repository.fetchStocks().collect {
+                localRepository.getStocks().collect {
                     when(it) {
                         is Result.Loading -> _stocksUiState.update { state -> state.copy(isLoading = true) }
                         is Result.Error -> _stocksUiState.update { state -> state.copy(isLoading = false, error = it.error) }

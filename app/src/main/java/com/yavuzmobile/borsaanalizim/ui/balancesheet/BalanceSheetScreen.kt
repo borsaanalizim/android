@@ -51,7 +51,7 @@ fun BalanceSheetScreen(
     BaseScreen(navController, Modifier.fillMaxSize(), code) {
         Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
             when(companyCardState.data) {
-                null -> CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
+                null -> {}
                 else -> {
                     Column(
                         modifier = Modifier

@@ -16,16 +16,16 @@ object DateUtil {
     fun fromTimestamp(timestamp: Long, pattern: String = "yyyy-MM-dd'T'HH:mm:ss'Z'"): Date? {
         val sdf = SimpleDateFormat(pattern, Locale.getDefault())
         val date = Date(timestamp)
-        sdf.timeZone = TimeZone.getTimeZone("UTC")
+        sdf.timeZone = TimeZone.getTimeZone("UTC+3")
         val formattedDate = sdf.format(date)
         return fromString(formattedDate) // Timestamp saniye cinsinden olduğu için 1000 ile çarpıyoruz
     }
 
     // String olan tarihi Date formatına dönüştüren fonksiyon
-    fun fromString(dateString: String, pattern: String = "yyyy-MM-dd'T'HH:mm:ss'Z'"): Date? {
+    fun fromString(dateString: String, pattern: String = "yyyy-MM-dd'T'HH:mm:ssXXX", timeZone: String = "UTC+3"): Date? {
         return try {
             val dateFormat = SimpleDateFormat(pattern, Locale.getDefault())
-            dateFormat.timeZone = TimeZone.getTimeZone("UTC") // Zulu time (UTC) formatı için timezone ayarı
+            dateFormat.timeZone = TimeZone.getTimeZone(timeZone)
             dateFormat.parse(dateString)
         } catch (e: Exception) {
             e.printStackTrace()
@@ -55,44 +55,6 @@ object DateUtil {
         val fourYearsTimeAgo = ZonedDateTime.now().minusYears(4L)
         val formatter = DateTimeFormatter.ofPattern(pattern)
         return dateFormat.parse(fourYearsTimeAgo.format(formatter))
-    }
-
-    fun getLastFourPeriods(): List<String> {
-        try {
-            val today = LocalDate.now()
-            val periods = mutableListOf<String>()
-            val year = today.year
-            val month = today.monthValue
-            var periodYear = year
-            var periodMonth = month
-
-
-            for (i in 0 until 4) {
-                when {
-                    month in 1..2 -> {
-                        periodYear -= 1
-                        periodMonth = 12
-                        periods.add("$periodYear/$periodMonth")
-                    }
-                    periodMonth % 3 == 0 -> {
-                        periodMonth -= 3
-                        if (periodMonth == 0) {
-                            periodYear -= 1
-                            periodMonth = 12
-                        }
-                        periods.add("$periodYear/$periodMonth")
-                    }
-                    else -> {
-                        periodMonth -= periodMonth % 3
-                        periods.add("$periodYear/$periodMonth")
-                    }
-                }
-            }
-            return periods
-        } catch (e: Exception) {
-            Log.e("DATE EXCEPTION", e.message.toString())
-            return emptyList()
-        }
     }
 
     fun getLastTwelvePeriods(): List<YearMonth> {

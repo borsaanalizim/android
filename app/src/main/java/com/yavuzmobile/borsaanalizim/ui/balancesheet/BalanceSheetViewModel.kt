@@ -3,15 +3,13 @@ package com.yavuzmobile.borsaanalizim.ui.balancesheet
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.yavuzmobile.borsaanalizim.data.Result
-import com.yavuzmobile.borsaanalizim.data.local.entity.BalanceSheetDateEntity
+import com.yavuzmobile.borsaanalizim.data.model.BalanceSheetDateResponse
 import com.yavuzmobile.borsaanalizim.data.model.BalanceSheetResponse
 import com.yavuzmobile.borsaanalizim.data.model.CompanyCard
 import com.yavuzmobile.borsaanalizim.data.repository.local.LocalRepository
 import com.yavuzmobile.borsaanalizim.data.repository.remote.IsYatirimRepository
 import com.yavuzmobile.borsaanalizim.ext.toDoubleOrDefault
 import com.yavuzmobile.borsaanalizim.model.BalanceSheet
-import com.yavuzmobile.borsaanalizim.model.PriceDate
-import com.yavuzmobile.borsaanalizim.model.PriceDateHistory
 import com.yavuzmobile.borsaanalizim.model.UiState
 import com.yavuzmobile.borsaanalizim.model.YearMonth
 import com.yavuzmobile.borsaanalizim.util.DateUtil
@@ -24,8 +22,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.time.LocalDate
-import java.time.ZoneId
 import java.util.Locale
 import javax.inject.Inject
 
@@ -35,11 +31,8 @@ class BalanceSheetViewModel @Inject constructor(
     private val localRepository: LocalRepository
 ) : ViewModel() {
 
-    private val _balanceSheetDatesState = MutableStateFlow(UiState<List<BalanceSheetDateEntity>>())
-    val balanceSheetDatesState: StateFlow<UiState<List<BalanceSheetDateEntity>>> = _balanceSheetDatesState.asStateFlow()
-
-    private val _priceDateHistoryState = MutableStateFlow(UiState<PriceDateHistory>())
-    val priceDateHistoryState: StateFlow<UiState<PriceDateHistory>> = _priceDateHistoryState.asStateFlow()
+    private val _balanceSheetDatesState = MutableStateFlow(UiState<BalanceSheetDateResponse>())
+    val balanceSheetDatesState: StateFlow<UiState<BalanceSheetDateResponse>> = _balanceSheetDatesState.asStateFlow()
 
     private val _companyCardState = MutableStateFlow(UiState<CompanyCard>())
     val companyCardState: StateFlow<UiState<CompanyCard>> = _companyCardState.asStateFlow()
@@ -47,30 +40,13 @@ class BalanceSheetViewModel @Inject constructor(
     private val _balanceSheetUiState = MutableStateFlow(UiState<List<BalanceSheet>>())
     val balanceSheetUiState: StateFlow<UiState<List<BalanceSheet>>> = _balanceSheetUiState.asStateFlow()
 
-    private val periodPrice = mutableMapOf<String, Double?>()
-
     fun fetchData(code: String) {
         viewModelScope.launch {
-            async { localRepository.getBalanceSheetOfStockDate(code) }.await().collect {
+            async { localRepository.getLastTwelveBalanceSheetDateOfStock(code) }.await().collect {
                 when (it) {
                     is Result.Loading -> _balanceSheetDatesState.update { state -> state.copy(true) }
                     is Result.Error -> _balanceSheetDatesState.update { state -> state.copy(false, error = it.error) }
                     is Result.Success -> _balanceSheetDatesState.update { state -> state.copy(false, data = it.data) }
-                }
-            }
-            async { isYatirimRepository.fetchPriceHistory(code) }.await().collect {
-                when (it) {
-                    is Result.Loading -> _priceDateHistoryState.update { state -> state.copy(true) }
-                    is Result.Error -> _priceDateHistoryState.update { state -> state.copy(false, error = it.error) }
-                    is Result.Success -> {
-                        val priceDateHistory = PriceDateHistory(it.data.data?.map { mappedData ->
-                            PriceDate(
-                                (mappedData[0] as Double).toLong(),
-                                mappedData[1] as Double
-                            )
-                        }, it.data.timestamp)
-                        _priceDateHistoryState.update { state -> state.copy(false, data = priceDateHistory) }
-                    }
                 }
             }
             val balanceSheetPeriods: List<YearMonth> = DateUtil.getLastTwelvePeriods()
@@ -119,34 +95,6 @@ class BalanceSheetViewModel @Inject constructor(
                                             is Result.Loading -> _balanceSheetUiState.update { state -> state.copy(isLoading = true) }
                                             is Result.Error -> _balanceSheetUiState.update { state -> state.copy(isLoading = false, error = thirdResult.error) }
                                             is Result.Success -> {
-                                                balanceSheetPeriods.forEach { balanceSheetPeriod ->
-                                                    val balanceSheetPeriodString = "${balanceSheetPeriod.year}/${balanceSheetPeriod.month}"
-
-                                                    periodPrice[balanceSheetPeriodString] = periodPrice[balanceSheetPeriodString] ?: run {
-                                                        val year = balanceSheetPeriod.year.toInt()
-                                                        val month = balanceSheetPeriod.month.toInt()
-
-                                                        val matchedYear = if (month == 12) "${year + 1}" else "$year"
-                                                        val matchedMonth = if (month == 12) 1 else month + 1
-
-                                                        val priceDateMap = priceDateHistoryState.value.data?.data?.associateBy {
-                                                            DateUtil.fromTimestamp(it.timestamp ?: 0L)?.toInstant()?.atZone(ZoneId.systemDefault())?.toLocalDate()
-                                                        }
-
-                                                        var matchedPrice: Double? = null
-
-                                                        // `generateSequence` kullanarak 31 gün boyunca tarihleri oluştur ve kontrol et
-                                                        generateSequence(LocalDate.of(matchedYear.toInt(), matchedMonth, 1)) { it.plusDays(1) }
-                                                            .take(31)
-                                                            .firstOrNull { date ->
-                                                                matchedPrice = priceDateMap?.get(date)?.price
-                                                                matchedPrice != null
-                                                            }
-
-                                                        matchedPrice
-                                                    }
-                                                }
-
                                                 val periodItemDescTrList = mutableMapOf<String, String>()
                                                 val periodItemDescEngList = mutableMapOf<String, String>()
                                                 val allPeriods = ArrayList<Map<String, String>>()
@@ -251,10 +199,8 @@ class BalanceSheetViewModel @Inject constructor(
         val balanceSheetList = ArrayList<BalanceSheet>()
         companyCard?.balanceSheetResponses?.forEachIndexed { index, balanceSheet ->
             val period = companyCard.period!![index]
-            if (periodPrice[period] == null) {
-                return@forEachIndexed
-            }
-            val periodPrice = periodPrice[period].toString().toDoubleOrDefault()
+            val periodPrice = balanceSheetDatesState.value.data?.dates?.find { datePeriod -> datePeriod.period == period }?.let { datePeriodNotNull -> datePeriodNotNull.price.toString().toDoubleOrDefault() } ?: kotlin.run { if (index == 0) balanceSheetDatesState.value.data?.lastPrice.toString().toDoubleOrDefault() else null}
+            if (periodPrice == null) return@forEachIndexed
             val marketValue = balanceSheet.paidCapital.toDoubleOrDefault() * periodPrice
             val bookValue = balanceSheet.equitiesOfParentCompany.toDoubleOrDefault()
             val eps = balanceSheet.previousYearsProfitAndLoss.toDoubleOrDefault() / balanceSheet.paidCapital.toDoubleOrDefault()
@@ -272,7 +218,7 @@ class BalanceSheetViewModel @Inject constructor(
 
             if (index == 0 || (index == 1 && !isNan && balanceSheetList.find { it.period == "Bugün" } == null)) {
                 val todayPeriod = "Bugün"
-                val todayPeriodPrice = priceDateHistoryState.value.data?.data?.lastOrNull()?.price.toString().toDoubleOrDefault()
+                val todayPeriodPrice = balanceSheetDatesState.value.data?.lastPrice.toString().toDoubleOrDefault()
                 val todayMarketValue = balanceSheet.paidCapital.toDoubleOrDefault() * todayPeriodPrice
                 val todayCompanyValue = todayMarketValue - netDebt
 

@@ -4,5 +4,5 @@ import com.google.gson.annotations.SerializedName
 
 data class BalanceSheetDates(
     @SerializedName("data")
-    val balanceSheetDateList: List<BalanceSheetDate>?
+    val balanceSheetDateResponseList: List<BalanceSheetDateResponse>?
 )

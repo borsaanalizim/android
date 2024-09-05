@@ -2,13 +2,14 @@ package com.yavuzmobile.borsaanalizim.di
 
 import android.content.Context
 import androidx.room.Room
+import com.yavuzmobile.borsaanalizim.data.api.Api
+import com.yavuzmobile.borsaanalizim.data.api.IsYatirimApi
 import com.yavuzmobile.borsaanalizim.data.local.AppDatabase
-import com.yavuzmobile.borsaanalizim.data.local.dao.BalanceSheetDateDao
+import com.yavuzmobile.borsaanalizim.data.local.dao.FinancialStatementDao
+import com.yavuzmobile.borsaanalizim.data.local.dao.StockDao
 import com.yavuzmobile.borsaanalizim.data.repository.local.LocalRepository
 import com.yavuzmobile.borsaanalizim.data.repository.remote.IsYatirimRepository
-import com.yavuzmobile.borsaanalizim.data.api.FinTablesApi
-import com.yavuzmobile.borsaanalizim.data.repository.remote.FinTablesRepository
-import com.yavuzmobile.borsaanalizim.data.api.IsYatirimApi
+import com.yavuzmobile.borsaanalizim.data.repository.remote.StockMarketAnalysisRepository
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -30,18 +31,6 @@ object AppModule {
     @Singleton
     fun provideOkHttpClient(): OkHttpClient {
         return OkHttpClient.Builder()
-            /*
-            .addInterceptor(Interceptor { chain ->
-                val request = chain.request().newBuilder()
-                    .addHeader("Authorization", "Bearer " + "")
-                    .build()
-                chain.proceed(request)
-            })*/
-            /*
-            .addInterceptor(HttpLoggingInterceptor().apply {
-                level = HttpLoggingInterceptor.Level.HEADERS
-            })
-            */
             .connectTimeout(10, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
             .addInterceptor(HttpLoggingInterceptor().apply {
@@ -63,10 +52,10 @@ object AppModule {
 
     @Provides
     @Singleton
-    @Named("FinTables")
+    @Named("BalanceSheet")
     fun provideFinTablesRetrofit(okHttpClient: OkHttpClient): Retrofit {
         return Retrofit.Builder()
-            .baseUrl("https://api.fintables.com/")
+            .baseUrl("https://borsaanalizim.com/")
             .client(okHttpClient)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
@@ -78,16 +67,16 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideFinTablesApi(@Named("FinTables") retrofit: Retrofit): FinTablesApi = retrofit.create(
-        FinTablesApi::class.java)
+    fun provideFinTablesApi(@Named("BalanceSheet") retrofit: Retrofit): Api = retrofit.create(
+        Api::class.java)
 
     @Provides
     @Singleton
-    fun provideRemoteRepository(api: IsYatirimApi): IsYatirimRepository = IsYatirimRepository(api)
+    fun provideRemoteRepository(api: IsYatirimApi, dao: FinancialStatementDao): IsYatirimRepository = IsYatirimRepository(api, dao)
 
     @Provides
     @Singleton
-    fun provideFinTablesRepository(api: FinTablesApi): FinTablesRepository = FinTablesRepository(api)
+    fun provideStockMarketAnalysisRepository(api: Api): StockMarketAnalysisRepository = StockMarketAnalysisRepository(api)
 
     @Provides
     @Singleton
@@ -99,9 +88,13 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideBalanceSheetDateDao(database: AppDatabase): BalanceSheetDateDao = database.balanceSheetDateDao()
+    fun provideStockDao(database: AppDatabase): StockDao = database.stockDao()
 
     @Provides
     @Singleton
-    fun provideLocalRepository(dao: BalanceSheetDateDao): LocalRepository = LocalRepository(dao)
+    fun provideFinancialStatementDao(database: AppDatabase): FinancialStatementDao = database.financialStatementDao()
+
+    @Provides
+    @Singleton
+    fun provideLocalRepository(dao: StockDao): LocalRepository = LocalRepository(dao)
 }
