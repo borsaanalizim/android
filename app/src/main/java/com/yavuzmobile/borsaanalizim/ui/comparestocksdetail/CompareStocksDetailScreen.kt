@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -22,8 +23,13 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.compose.ui.graphics.layer.drawLayer
+import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -31,6 +37,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.yavuzmobile.borsaanalizim.enums.ActionButtons
 import com.yavuzmobile.borsaanalizim.ext.cleanedNumberFormat
 import com.yavuzmobile.borsaanalizim.ext.findActivity
 import com.yavuzmobile.borsaanalizim.ext.orDefault
@@ -51,6 +58,8 @@ import com.yavuzmobile.borsaanalizim.util.RatiosConstant.LABEL_MARKET_BOOK_AND_B
 import com.yavuzmobile.borsaanalizim.util.RatiosConstant.LABEL_MARKET_VALUE_AND_OPERATION_PROFIT
 import com.yavuzmobile.borsaanalizim.util.RatiosConstant.LABEL_NET_OPERATING_PROFIT_AND_MARKET_VALUE
 import com.yavuzmobile.borsaanalizim.util.RatiosConstant.LABEL_PRICE_AND_EARNING
+import com.yavuzmobile.borsaanalizim.util.ShareUtil
+import kotlinx.coroutines.launch
 import java.util.Locale
 
 @Composable
@@ -59,6 +68,7 @@ fun CompareStocksDetailScreen(
     stocks: List<StockFilter>,
     viewModel: CompareStocksViewModel = hiltViewModel()
 ) {
+
     val context = LocalContext.current
     val activity = context.findActivity()
 
@@ -84,284 +94,41 @@ fun CompareStocksDetailScreen(
         }
     }
 
-    BaseScreen(navController, Modifier.fillMaxSize(), "Karşılaştırma") {
+    val coroutineScope = rememberCoroutineScope()
+    val graphicsLayerTableRatios = rememberGraphicsLayer()
 
+    BaseScreen(navController, Modifier.fillMaxSize(), "Karşılaştırma", ActionButtons.SHARE, {
+        var fileName = ""
+        stocks.forEachIndexed { index, stockFilter -> fileName += if (index == 0) stockFilter.stock.code else "-${stockFilter.stock.code}" }
+        coroutineScope.launch {
+            val bitmap = graphicsLayerTableRatios.toImageBitmap()
+            ShareUtil.shareBitmap(context, bitmap.asAndroidBitmap(), fileName)
+        }
+    }) {
         Column(
             Modifier
                 .fillMaxWidth()
                 .verticalScroll(rememberScrollState())
         ) {
 
-            val marketBookAndBookValueMin = stocks.minOfOrNull { it.balanceSheetRatios.marketBookAndBookValue.cleanedNumberFormat().toDoubleOrDefault() } ?: 0.0
-            val marketBookAndBookValueMax = stocks.maxOfOrNull { it.balanceSheetRatios.marketBookAndBookValue.cleanedNumberFormat().toDoubleOrDefault() } ?: 1.0
+            DetailTableRatios(
+                modifier = Modifier,
+                stocks = stocks
+            )
 
-            val priceAndEarningMin = stocks.minOfOrNull { it.balanceSheetRatios.priceAndEarning.cleanedNumberFormat().toDoubleOrDefault() } ?: 0.0
-            val priceAndEarningMax = stocks.maxOfOrNull { it.balanceSheetRatios.priceAndEarning.cleanedNumberFormat().toDoubleOrDefault() } ?: 1.0
+            Spacer(Modifier.height(8.dp))
 
-            val companyValueAndEbitdaMin = stocks.minOfOrNull { it.balanceSheetRatios.companyValueAndEbitda.cleanedNumberFormat().toDoubleOrDefault() } ?: 0.0
-            val companyValueAndEbitdaMax = stocks.maxOfOrNull { it.balanceSheetRatios.companyValueAndEbitda.cleanedNumberFormat().toDoubleOrDefault() } ?: 1.0
-
-            val marketValueAndNetOperatingProfitMin = stocks.minOfOrNull { it.balanceSheetRatios.marketValueAndNetOperatingProfit.cleanedNumberFormat().toDoubleOrDefault() } ?: 0.0
-            val marketValueAndNetOperatingProfitMax = stocks.maxOfOrNull { it.balanceSheetRatios.marketValueAndNetOperatingProfit.cleanedNumberFormat().toDoubleOrDefault() } ?: 1.0
-
-            val companyValueAndNetSalesMin = stocks.minOfOrNull { it.balanceSheetRatios.companyValueAndNetSales.cleanedNumberFormat().toDoubleOrDefault() } ?: 0.0
-            val companyValueAndNetSalesMax = stocks.maxOfOrNull { it.balanceSheetRatios.companyValueAndNetSales.cleanedNumberFormat().toDoubleOrDefault() } ?: 1.0
-
-            val netOperatingProfitAndMarketValueMin = stocks.minOfOrNull { it.balanceSheetRatios.netOperatingProfitAndMarketValue.cleanedNumberFormat().toDoubleOrDefault() } ?: 0.0
-            val netOperatingProfitAndMarketValueMax = stocks.maxOfOrNull { it.balanceSheetRatios.netOperatingProfitAndMarketValue.cleanedNumberFormat().toDoubleOrDefault() } ?: 1.0
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(start = 32.dp, end = 8.dp)
-                    .horizontalScroll(rememberScrollState())
-            ) {
-                Column(
-                    Modifier
-                        .width(90.dp)
-                        .padding(horizontal = 4.dp)
-                ) {
-                    Row(Modifier.fillMaxWidth()) {
-                        Text("FİRMA", fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
-                        IconButton(onClick = { selectedSort.value = SortByBalanceSheetRatios.STOCK_CODE }, modifier = Modifier.height(24.dp)) {
-                            Icon(imageVector = if (selectedSort.value == SortByBalanceSheetRatios.STOCK_CODE) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowUp, contentDescription = "")
-                        }
+            TableRatios(
+                modifier = Modifier.drawWithContent {
+                    graphicsLayerTableRatios.record {
+                        this@drawWithContent.drawContent()
                     }
-                    sortedList.forEach { stock ->
-                        Text(stock.balanceSheetRatios.stockCode, modifier = Modifier.fillMaxWidth())
-                    }
-                }
-                Column(
-                    Modifier
-                        .width(90.dp)
-                        .padding(horizontal = 4.dp)
-                ) {
-                    Text("SEKTÖR", fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
-                    sortedList.forEach { stock ->
-                        Text(
-                            text = "${stock.stock.sectors?.first()}", modifier = Modifier.fillMaxWidth(),
-                            overflow = TextOverflow.Ellipsis,
-                            maxLines = 1,
-                        )
-                    }
-                }
-                Column(
-                    Modifier
-                        .width(90.dp)
-                        .padding(horizontal = 4.dp)
-                ) {
-                    Text("Bilanço F.", fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
-                    sortedList.forEach { stock ->
-                        Text(
-                            stock.balanceSheetRatios.price,
-                            modifier = Modifier.fillMaxWidth(),
-                            textAlign = TextAlign.Center
-                        )
-                    }
-                }
-                Column(
-                    Modifier
-                        .width(90.dp)
-                        .padding(horizontal = 4.dp)
-                ) {
-                    Text("Güncel F.", fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
-                    sortedList.forEach { stock ->
-                        Text(
-                            "${stock.balanceSheetDate.stock.lastPrice}",
-                            modifier = Modifier.fillMaxWidth(),
-                            textAlign = TextAlign.Center
-                        )
-                    }
-                }
-                Column(
-                    Modifier
-                        .width(105.dp)
-                        .padding(horizontal = 4.dp)
-                ) {
-                    Text("Gerç. Marj", fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
-                    sortedList.forEach { stock ->
-                        Text(
-                            "${String.format(Locale.getDefault(), "%.2f", ((stock.balanceSheetDate.stock.lastPrice.orDefault()) - (stock.balanceSheetRatios.price.cleanedNumberFormat().toDoubleOrDefault())) / (stock.balanceSheetRatios.price.cleanedNumberFormat().toDoubleOrDefault()) * 100)}%",
-                            modifier = Modifier.fillMaxWidth(),
-                            textAlign = TextAlign.Center
-                        )
-                    }
-                }
-
-                // Ratios
-                Column(
-                    Modifier
-                        .width(90.dp)
-                        .padding(horizontal = 4.dp)
-                ) {
-                    Row {
-                        Text(LABEL_MARKET_BOOK_AND_BOOK_VALUE, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
-                        IconButton(onClick = { selectedSort.value = SortByBalanceSheetRatios.MARKET_BOOK_AND_BOOK_VALUE }, modifier = Modifier.height(24.dp)) {
-                            Icon(imageVector = if (selectedSort.value == SortByBalanceSheetRatios.MARKET_BOOK_AND_BOOK_VALUE) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowUp, contentDescription = "")
-                        }
-                    }
-                    sortedList.forEach { stockFilter ->
-                        val marketBookAndBookValue = stockFilter.balanceSheetRatios.marketBookAndBookValue
-                        if (marketBookAndBookValue.cleanedNumberFormat().toDoubleOrDefault().isNaN()) {
-                            return@forEach
-                        }
-                        val backgroundColor = getBackgroundColor(
-                            marketBookAndBookValue.cleanedNumberFormat().toDoubleOrDefault(),
-                            marketBookAndBookValueMin,
-                            marketBookAndBookValueMax
-                        )
-                        Text(
-                            marketBookAndBookValue, modifier = Modifier
-                                .fillMaxWidth()
-                                .background(backgroundColor), textAlign = TextAlign.Center, color = Color(0xFF333333)
-                        )
-                    }
-                }
-                Column(
-                    Modifier
-                        .width(90.dp)
-                        .padding(horizontal = 4.dp)
-                ) {
-                    Row(Modifier.fillMaxWidth()) {
-                        Text(LABEL_PRICE_AND_EARNING, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
-                        IconButton(onClick = { selectedSort.value = SortByBalanceSheetRatios.PRICE_AND_EARNING }, modifier = Modifier.height(24.dp)) {
-                            Icon(imageVector = if(selectedSort.value == SortByBalanceSheetRatios.PRICE_AND_EARNING) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowUp, contentDescription = "")
-                        }
-                    }
-                    sortedList.forEach { stockFilter ->
-                        val priceAndEarning = stockFilter.balanceSheetRatios.priceAndEarning
-                        if (priceAndEarning.cleanedNumberFormat().toDoubleOrDefault().isNaN()) {
-                            return@forEach
-                        }
-                        val backgroundColor = getBackgroundColor(
-                            priceAndEarning.cleanedNumberFormat().toDoubleOrDefault(),
-                            priceAndEarningMin,
-                            priceAndEarningMax
-                        )
-                        Text(
-                            if (priceAndEarning.cleanedNumberFormat().toDoubleOrDefault() < 0) "-"
-                            else priceAndEarning, modifier = Modifier
-                                .fillMaxWidth()
-                                .background(backgroundColor), textAlign = TextAlign.Center, color = Color(0xFF333333)
-                        )
-                    }
-                }
-                Column(
-                    Modifier
-                        .width(120.dp)
-                        .padding(horizontal = 4.dp)
-                ) {
-                    Row {
-                        Text(LABEL_COMPANY_VALUE_AND_EBITDA, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
-                        IconButton(onClick = { selectedSort.value = SortByBalanceSheetRatios.COMPANY_VALUE_AND_EBITDA }, modifier = Modifier.height(24.dp)) {
-                            Icon(imageVector = if (selectedSort.value == SortByBalanceSheetRatios.COMPANY_VALUE_AND_EBITDA) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowUp, contentDescription = "")
-                        }
-                    }
-                    sortedList.forEach { stockFilter ->
-                        val companyValueAndEbitda = stockFilter.balanceSheetRatios.companyValueAndEbitda
-                        if (companyValueAndEbitda.cleanedNumberFormat().toDoubleOrDefault().isNaN()) {
-                            return@forEach
-                        }
-                        val backgroundColor = getBackgroundColor(
-                            companyValueAndEbitda.cleanedNumberFormat().toDoubleOrDefault(),
-                            companyValueAndEbitdaMin,
-                            companyValueAndEbitdaMax
-                        )
-                        Text(
-                            if (companyValueAndEbitda.cleanedNumberFormat().toDoubleOrDefault() < 0) "-"
-                            else companyValueAndEbitda, modifier = Modifier
-                                .fillMaxWidth()
-                                .background(backgroundColor), textAlign = TextAlign.Center, color = Color(0xFF333333)
-                        )
-                    }
-                }
-                Column(
-                    Modifier
-                        .width(105.dp)
-                        .padding(horizontal = 4.dp)
-                ) {
-                    Row {
-                        Text(LABEL_MARKET_VALUE_AND_OPERATION_PROFIT, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
-                        IconButton(onClick = { selectedSort.value = SortByBalanceSheetRatios.MARKET_VALUE_AND_NET_OPERATING_PROFIT }, modifier = Modifier.height(24.dp)) {
-                            Icon(imageVector = if (selectedSort.value == SortByBalanceSheetRatios.MARKET_VALUE_AND_NET_OPERATING_PROFIT) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowUp, contentDescription = "")
-                        }
-                    }
-                    sortedList.forEach { stockFilter ->
-                        val marketValueAndNetOperatingProfit = stockFilter.balanceSheetRatios.marketValueAndNetOperatingProfit
-                        if (marketValueAndNetOperatingProfit.cleanedNumberFormat().toDoubleOrDefault().isNaN()) {
-                            return@forEach
-                        }
-                        val backgroundColor = getBackgroundColor(
-                            marketValueAndNetOperatingProfit.cleanedNumberFormat().toDoubleOrDefault(),
-                            marketValueAndNetOperatingProfitMin,
-                            marketValueAndNetOperatingProfitMax
-                        )
-                        Text(
-                            if (marketValueAndNetOperatingProfit.cleanedNumberFormat().toDoubleOrDefault() < 0) "-"
-                            else marketValueAndNetOperatingProfit, modifier = Modifier
-                                .fillMaxWidth()
-                                .background(backgroundColor), textAlign = TextAlign.Center, color = Color(0xFF333333)
-                        )
-                    }
-                }
-                Column(
-                    Modifier
-                        .width(90.dp)
-                        .padding(horizontal = 4.dp)
-                ) {
-                    Row(Modifier.fillMaxWidth()) {
-                        Text(LABEL_COMPANY_VALUE_AND_NET_SALES, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
-                        IconButton(onClick = { selectedSort.value = SortByBalanceSheetRatios.COMPANY_VALUE_AND_NET_SALES }, modifier = Modifier.height(24.dp)) {
-                            Icon(imageVector = if (selectedSort.value == SortByBalanceSheetRatios.COMPANY_VALUE_AND_NET_SALES) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowUp, contentDescription = "")
-                        }
-                    }
-                    sortedList.forEach { stockFilter ->
-                        val companyValueAndNetSales = stockFilter.balanceSheetRatios.companyValueAndNetSales
-                        if (companyValueAndNetSales.cleanedNumberFormat().toDoubleOrDefault().isNaN()) {
-                            return@forEach
-                        }
-                        val backgroundColor = getBackgroundColor(
-                            companyValueAndNetSales.cleanedNumberFormat().toDoubleOrDefault(),
-                            companyValueAndNetSalesMin,
-                            companyValueAndNetSalesMax
-                        )
-                        Text(
-                            if (companyValueAndNetSales.cleanedNumberFormat().toDoubleOrDefault() < 0) "-"
-                            else companyValueAndNetSales, modifier = Modifier
-                                .fillMaxWidth()
-                                .background(backgroundColor), textAlign = TextAlign.Center, color = Color(0xFF333333)
-                        )
-                    }
-                }
-                Column(
-                    Modifier
-                        .width(105.dp)
-                        .padding(horizontal = 4.dp)
-                ) {
-                    Row(Modifier.fillMaxWidth()) {
-                        Text(LABEL_NET_OPERATING_PROFIT_AND_MARKET_VALUE, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
-                        IconButton(onClick = { selectedSort.value = SortByBalanceSheetRatios.NET_OPERATING_PROFIT_AND_MARKET_VALUE }, modifier = Modifier.height(24.dp)) {
-                            Icon(imageVector = if (selectedSort.value == SortByBalanceSheetRatios.NET_OPERATING_PROFIT_AND_MARKET_VALUE) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowUp, contentDescription = "")
-                        }
-                    }
-                    sortedList.forEach { stockFilter ->
-                        val netOperatingProfitAndMarketValue = stockFilter.balanceSheetRatios.netOperatingProfitAndMarketValue
-                        if (netOperatingProfitAndMarketValue.cleanedNumberFormat().toDoubleOrDefault().isNaN()) {
-                            return@forEach
-                        }
-                        val backgroundColor = getBackgroundColor(
-                            netOperatingProfitAndMarketValue.cleanedNumberFormat().toDoubleOrDefault(),
-                            netOperatingProfitAndMarketValueMin,
-                            netOperatingProfitAndMarketValueMax,
-                            true
-                        )
-                        Text(
-                            "$netOperatingProfitAndMarketValue%", modifier = Modifier
-                                .fillMaxWidth()
-                                .background(backgroundColor), textAlign = TextAlign.Center, color = Color(0xFF333333)
-                        )
-                    }
-                }
+                    drawLayer(graphicsLayerTableRatios)
+                },
+                stocks = stocks,
+                sortedList = sortedList, selectedSort.value
+            ) { selected ->
+                selectedSort.value = selected
             }
 
             Spacer(Modifier.height(32.dp))
@@ -386,6 +153,303 @@ fun CompareStocksDetailScreen(
         }
     }
 
+}
+
+@Composable
+fun TableRatios(modifier: Modifier, stocks: List<StockFilter>, sortedList: List<StockFilter>, selectedSort: SortByBalanceSheetRatios, onClickSort: (selectedSort: SortByBalanceSheetRatios) -> Unit) {
+
+    val marketBookAndBookValueMin = stocks.minOfOrNull { it.balanceSheetRatios.marketBookAndBookValue.cleanedNumberFormat().toDoubleOrDefault() } ?: 0.0
+    val marketBookAndBookValueMax = stocks.maxOfOrNull { it.balanceSheetRatios.marketBookAndBookValue.cleanedNumberFormat().toDoubleOrDefault() } ?: 1.0
+
+    val priceAndEarningMin = stocks.minOfOrNull { it.balanceSheetRatios.priceAndEarning.cleanedNumberFormat().toDoubleOrDefault() } ?: 0.0
+    val priceAndEarningMax = stocks.maxOfOrNull { it.balanceSheetRatios.priceAndEarning.cleanedNumberFormat().toDoubleOrDefault() } ?: 1.0
+
+    val companyValueAndEbitdaMin = stocks.minOfOrNull { it.balanceSheetRatios.companyValueAndEbitda.cleanedNumberFormat().toDoubleOrDefault() } ?: 0.0
+    val companyValueAndEbitdaMax = stocks.maxOfOrNull { it.balanceSheetRatios.companyValueAndEbitda.cleanedNumberFormat().toDoubleOrDefault() } ?: 1.0
+
+    val marketValueAndNetOperatingProfitMin = stocks.minOfOrNull { it.balanceSheetRatios.marketValueAndNetOperatingProfit.cleanedNumberFormat().toDoubleOrDefault() } ?: 0.0
+    val marketValueAndNetOperatingProfitMax = stocks.maxOfOrNull { it.balanceSheetRatios.marketValueAndNetOperatingProfit.cleanedNumberFormat().toDoubleOrDefault() } ?: 1.0
+
+    val companyValueAndNetSalesMin = stocks.minOfOrNull { it.balanceSheetRatios.companyValueAndNetSales.cleanedNumberFormat().toDoubleOrDefault() } ?: 0.0
+    val companyValueAndNetSalesMax = stocks.maxOfOrNull { it.balanceSheetRatios.companyValueAndNetSales.cleanedNumberFormat().toDoubleOrDefault() } ?: 1.0
+
+    val netOperatingProfitAndMarketValueMin = stocks.minOfOrNull { it.balanceSheetRatios.netOperatingProfitAndMarketValue.cleanedNumberFormat().toDoubleOrDefault() } ?: 0.0
+    val netOperatingProfitAndMarketValueMax = stocks.maxOfOrNull { it.balanceSheetRatios.netOperatingProfitAndMarketValue.cleanedNumberFormat().toDoubleOrDefault() } ?: 1.0
+
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(start = 32.dp, end = 8.dp)
+            .horizontalScroll(rememberScrollState())
+    ) {
+        Column(
+            Modifier
+                .width(100.dp)
+                .padding(horizontal = 4.dp)
+        ) {
+            Row(Modifier.fillMaxWidth()) {
+                Text("FİRMA", fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+                IconButton(onClick = { onClickSort(SortByBalanceSheetRatios.STOCK_CODE) }, modifier = Modifier.size(24.dp)) {
+                    Icon(imageVector = if (selectedSort == SortByBalanceSheetRatios.STOCK_CODE) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowUp, contentDescription = "")
+                }
+            }
+            sortedList.forEach { stock ->
+                Text(stock.balanceSheetRatios.stockCode, modifier = Modifier.fillMaxWidth())
+            }
+        }
+
+        // Ratios
+        Column(
+            Modifier
+                .width(100.dp)
+                .padding(horizontal = 4.dp)
+        ) {
+            Row {
+                Text(LABEL_MARKET_BOOK_AND_BOOK_VALUE, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+                IconButton(onClick = { onClickSort(SortByBalanceSheetRatios.MARKET_BOOK_AND_BOOK_VALUE) }, modifier = Modifier.size(24.dp)) {
+                    Icon(imageVector = if (selectedSort == SortByBalanceSheetRatios.MARKET_BOOK_AND_BOOK_VALUE) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowUp, contentDescription = "")
+                }
+            }
+            sortedList.forEach { stockFilter ->
+                val marketBookAndBookValue = stockFilter.balanceSheetRatios.marketBookAndBookValue
+                if (marketBookAndBookValue.cleanedNumberFormat().toDoubleOrDefault().isNaN()) {
+                    return@forEach
+                }
+                val backgroundColor = getBackgroundColor(
+                    marketBookAndBookValue.cleanedNumberFormat().toDoubleOrDefault(),
+                    marketBookAndBookValueMin,
+                    marketBookAndBookValueMax
+                )
+                Text(
+                    marketBookAndBookValue, modifier = Modifier
+                        .fillMaxWidth()
+                        .background(backgroundColor), textAlign = TextAlign.Center, color = Color(0xFF333333)
+                )
+            }
+        }
+        Column(
+            Modifier
+                .width(90.dp)
+                .padding(horizontal = 4.dp)
+        ) {
+            Row(Modifier.fillMaxWidth()) {
+                Text(LABEL_PRICE_AND_EARNING, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+                IconButton(onClick = { onClickSort(SortByBalanceSheetRatios.PRICE_AND_EARNING) }, modifier = Modifier.size(24.dp)) {
+                    Icon(imageVector = if(selectedSort == SortByBalanceSheetRatios.PRICE_AND_EARNING) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowUp, contentDescription = "")
+                }
+            }
+            sortedList.forEach { stockFilter ->
+                val priceAndEarning = stockFilter.balanceSheetRatios.priceAndEarning
+                if (priceAndEarning.cleanedNumberFormat().toDoubleOrDefault().isNaN()) {
+                    return@forEach
+                }
+                val backgroundColor = getBackgroundColor(
+                    priceAndEarning.cleanedNumberFormat().toDoubleOrDefault(),
+                    priceAndEarningMin,
+                    priceAndEarningMax
+                )
+                Text(
+                    if (priceAndEarning.cleanedNumberFormat().toDoubleOrDefault() < 0) "-"
+                    else priceAndEarning, modifier = Modifier
+                        .fillMaxWidth()
+                        .background(backgroundColor), textAlign = TextAlign.Center, color = Color(0xFF333333)
+                )
+            }
+        }
+        Column(
+            Modifier
+                .width(130.dp)
+                .padding(horizontal = 4.dp)
+        ) {
+            Row {
+                Text(LABEL_COMPANY_VALUE_AND_EBITDA, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+                IconButton(onClick = { onClickSort(SortByBalanceSheetRatios.COMPANY_VALUE_AND_EBITDA) }, modifier = Modifier.size(24.dp)) {
+                    Icon(imageVector = if (selectedSort == SortByBalanceSheetRatios.COMPANY_VALUE_AND_EBITDA) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowUp, contentDescription = "")
+                }
+            }
+            sortedList.forEach { stockFilter ->
+                val companyValueAndEbitda = stockFilter.balanceSheetRatios.companyValueAndEbitda
+                if (companyValueAndEbitda.cleanedNumberFormat().toDoubleOrDefault().isNaN()) {
+                    return@forEach
+                }
+                val backgroundColor = getBackgroundColor(
+                    companyValueAndEbitda.cleanedNumberFormat().toDoubleOrDefault(),
+                    companyValueAndEbitdaMin,
+                    companyValueAndEbitdaMax
+                )
+                Text(
+                    if (companyValueAndEbitda.cleanedNumberFormat().toDoubleOrDefault() < 0) "-"
+                    else companyValueAndEbitda, modifier = Modifier
+                        .fillMaxWidth()
+                        .background(backgroundColor), textAlign = TextAlign.Center, color = Color(0xFF333333)
+                )
+            }
+        }
+        Column(
+            Modifier
+                .width(105.dp)
+                .padding(horizontal = 4.dp)
+        ) {
+            Row {
+                Text(LABEL_MARKET_VALUE_AND_OPERATION_PROFIT, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+                IconButton(onClick = { onClickSort(SortByBalanceSheetRatios.MARKET_VALUE_AND_NET_OPERATING_PROFIT) }, modifier = Modifier.size(24.dp)) {
+                    Icon(imageVector = if (selectedSort == SortByBalanceSheetRatios.MARKET_VALUE_AND_NET_OPERATING_PROFIT) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowUp, contentDescription = "")
+                }
+            }
+            sortedList.forEach { stockFilter ->
+                val marketValueAndNetOperatingProfit = stockFilter.balanceSheetRatios.marketValueAndNetOperatingProfit
+                if (marketValueAndNetOperatingProfit.cleanedNumberFormat().toDoubleOrDefault().isNaN()) {
+                    return@forEach
+                }
+                val backgroundColor = getBackgroundColor(
+                    marketValueAndNetOperatingProfit.cleanedNumberFormat().toDoubleOrDefault(),
+                    marketValueAndNetOperatingProfitMin,
+                    marketValueAndNetOperatingProfitMax
+                )
+                Text(
+                    if (marketValueAndNetOperatingProfit.cleanedNumberFormat().toDoubleOrDefault() < 0) "-"
+                    else marketValueAndNetOperatingProfit, modifier = Modifier
+                        .fillMaxWidth()
+                        .background(backgroundColor), textAlign = TextAlign.Center, color = Color(0xFF333333)
+                )
+            }
+        }
+        Column(
+            Modifier
+                .width(100.dp)
+                .padding(horizontal = 4.dp)
+        ) {
+            Row(Modifier.fillMaxWidth()) {
+                Text(LABEL_COMPANY_VALUE_AND_NET_SALES, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+                IconButton(onClick = { onClickSort(SortByBalanceSheetRatios.COMPANY_VALUE_AND_NET_SALES) }, modifier = Modifier.size(24.dp)) {
+                    Icon(imageVector = if (selectedSort == SortByBalanceSheetRatios.COMPANY_VALUE_AND_NET_SALES) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowUp, contentDescription = "")
+                }
+            }
+            sortedList.forEach { stockFilter ->
+                val companyValueAndNetSales = stockFilter.balanceSheetRatios.companyValueAndNetSales
+                if (companyValueAndNetSales.cleanedNumberFormat().toDoubleOrDefault().isNaN()) {
+                    return@forEach
+                }
+                val backgroundColor = getBackgroundColor(
+                    companyValueAndNetSales.cleanedNumberFormat().toDoubleOrDefault(),
+                    companyValueAndNetSalesMin,
+                    companyValueAndNetSalesMax
+                )
+                Text(
+                    if (companyValueAndNetSales.cleanedNumberFormat().toDoubleOrDefault() < 0) "-"
+                    else companyValueAndNetSales, modifier = Modifier
+                        .fillMaxWidth()
+                        .background(backgroundColor), textAlign = TextAlign.Center, color = Color(0xFF333333)
+                )
+            }
+        }
+        Column(
+            Modifier
+                .width(105.dp)
+                .padding(horizontal = 4.dp)
+        ) {
+            Row(Modifier.fillMaxWidth()) {
+                Text(LABEL_NET_OPERATING_PROFIT_AND_MARKET_VALUE, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+                IconButton(onClick = { onClickSort(SortByBalanceSheetRatios.NET_OPERATING_PROFIT_AND_MARKET_VALUE) }, modifier = Modifier.size(24.dp)) {
+                    Icon(imageVector = if (selectedSort == SortByBalanceSheetRatios.NET_OPERATING_PROFIT_AND_MARKET_VALUE) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowUp, contentDescription = "")
+                }
+            }
+            sortedList.forEach { stockFilter ->
+                val netOperatingProfitAndMarketValue = stockFilter.balanceSheetRatios.netOperatingProfitAndMarketValue
+                if (netOperatingProfitAndMarketValue.cleanedNumberFormat().toDoubleOrDefault().isNaN()) {
+                    return@forEach
+                }
+                val backgroundColor = getBackgroundColor(
+                    netOperatingProfitAndMarketValue.cleanedNumberFormat().toDoubleOrDefault(),
+                    netOperatingProfitAndMarketValueMin,
+                    netOperatingProfitAndMarketValueMax,
+                    true
+                )
+                Text(
+                    "$netOperatingProfitAndMarketValue%", modifier = Modifier
+                        .fillMaxWidth()
+                        .background(backgroundColor), textAlign = TextAlign.Center, color = Color(0xFF333333)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun DetailTableRatios(modifier: Modifier, stocks: List<StockFilter>) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(start = 32.dp, end = 8.dp)
+            .horizontalScroll(rememberScrollState())
+    ) {
+        Column(
+            Modifier
+                .width(90.dp)
+                .padding(horizontal = 4.dp)
+        ) {
+            Text("FİRMA", fontWeight = FontWeight.Bold, modifier = Modifier.fillMaxWidth())
+            stocks.forEach { stock ->
+                Text(stock.balanceSheetRatios.stockCode, modifier = Modifier.fillMaxWidth())
+            }
+        }
+        Column(
+            Modifier
+                .width(90.dp)
+                .padding(horizontal = 4.dp)
+        ) {
+            Text("SEKTÖR", fontWeight = FontWeight.Bold, modifier = Modifier.fillMaxWidth())
+            stocks.forEach { stock ->
+                Text(
+                    text = "${stock.stock.sectors?.first()}", modifier = Modifier.fillMaxWidth(),
+                    overflow = TextOverflow.Ellipsis,
+                    maxLines = 1,
+                )
+            }
+        }
+        Column(
+            Modifier
+                .width(90.dp)
+                .padding(horizontal = 4.dp)
+        ) {
+            Text("Bilanço F.", fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+            stocks.forEach { stock ->
+                Text(
+                    stock.balanceSheetRatios.price,
+                    modifier = Modifier.fillMaxWidth(),
+                    textAlign = TextAlign.Center
+                )
+            }
+        }
+        Column(
+            Modifier
+                .width(90.dp)
+                .padding(horizontal = 4.dp)
+        ) {
+            Text("Güncel F.", fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+            stocks.forEach { stock ->
+                Text(
+                    "${stock.balanceSheetDate.stock.lastPrice}",
+                    modifier = Modifier.fillMaxWidth(),
+                    textAlign = TextAlign.Center
+                )
+            }
+        }
+        Column(
+            Modifier
+                .width(105.dp)
+                .padding(horizontal = 4.dp)
+        ) {
+            Text("Gerç. Marj", fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+            stocks.forEach { stock ->
+                Text(
+                    "${String.format(Locale.getDefault(), "%.2f", ((stock.balanceSheetDate.stock.lastPrice.orDefault()) - (stock.balanceSheetRatios.price.cleanedNumberFormat().toDoubleOrDefault())) / (stock.balanceSheetRatios.price.cleanedNumberFormat().toDoubleOrDefault()) * 100)}%",
+                    modifier = Modifier.fillMaxWidth(),
+                    textAlign = TextAlign.Center
+                )
+            }
+        }
+    }
 }
 
 @Composable

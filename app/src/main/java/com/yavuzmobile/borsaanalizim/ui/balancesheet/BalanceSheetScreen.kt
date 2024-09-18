@@ -22,15 +22,21 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.compose.ui.graphics.layer.drawLayer
+import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.yavuzmobile.borsaanalizim.enums.ActionButtons
 import com.yavuzmobile.borsaanalizim.ext.cleanedNumberFormat
 import com.yavuzmobile.borsaanalizim.ext.findActivity
 import com.yavuzmobile.borsaanalizim.ext.toDoubleOrDefault
@@ -48,6 +54,8 @@ import com.yavuzmobile.borsaanalizim.util.RatiosConstant.LABEL_MARKET_BOOK_AND_B
 import com.yavuzmobile.borsaanalizim.util.RatiosConstant.LABEL_MARKET_VALUE_AND_OPERATION_PROFIT
 import com.yavuzmobile.borsaanalizim.util.RatiosConstant.LABEL_NET_OPERATING_PROFIT_AND_MARKET_VALUE
 import com.yavuzmobile.borsaanalizim.util.RatiosConstant.LABEL_PRICE_AND_EARNING
+import com.yavuzmobile.borsaanalizim.util.ShareUtil
+import kotlinx.coroutines.launch
 
 @SuppressLint("StateFlowValueCalledInComposition")
 @Composable
@@ -64,11 +72,19 @@ fun BalanceSheetScreen(
 
     val balanceSheetWithRatiosUiState by viewModel.balanceSheetWithRatiosState.collectAsState()
 
+    val coroutineScope = rememberCoroutineScope()
+    val graphicsLayerTableRatios = rememberGraphicsLayer()
+
     LaunchedEffect(code) {
         viewModel.fetchData(code)
     }
 
-    BaseScreen(navController, Modifier.fillMaxSize(), code) {
+    BaseScreen(navController, Modifier.fillMaxSize(), code, actionButton = ActionButtons.SHARE, onClickAction = {
+        coroutineScope.launch {
+            val bitmap = graphicsLayerTableRatios.toImageBitmap()
+            ShareUtil.shareBitmap(context, bitmap.asAndroidBitmap(), code)
+        }
+    }) {
         Column(
             Modifier
                 .fillMaxWidth()
@@ -210,7 +226,12 @@ fun BalanceSheetScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(start = 32.dp, end = 16.dp)
-                                .horizontalScroll(rememberScrollState())
+                                .horizontalScroll(rememberScrollState()).drawWithContent {
+                                    graphicsLayerTableRatios.record {
+                                        this@drawWithContent.drawContent()
+                                    }
+                                    drawLayer(graphicsLayerTableRatios)
+                                }
                         ) {
                             Column(
                                 Modifier

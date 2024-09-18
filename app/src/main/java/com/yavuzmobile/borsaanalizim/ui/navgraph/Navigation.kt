@@ -47,7 +47,13 @@ fun Navigation() {
         composable(NavigationItem.CompareStocksScreen.route) {
             CompareStocksScreen(navController)
         }
-        composable(NavigationItem.CompareStocksDetailScreen.route) { currentBackStackEntry ->
+        composable(
+            NavigationItem.CompareStocksDetailScreen.route,
+            arguments = listOf(navArgument("stocks") {
+                type = NavType.StringType
+                nullable = false
+            })
+            ) { currentBackStackEntry ->
             val stocksEncoded = currentBackStackEntry.arguments?.getString("stocks")
             val stocksDecoded = String(Base64.decode(stocksEncoded, Base64.DEFAULT))
             val stocks = Gson().fromJson(stocksDecoded, Array<StockFilter>::class.java).toList()

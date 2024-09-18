@@ -27,7 +27,7 @@ fun SplashScreen(navController: NavController, viewModel: SplashViewModel = hilt
         viewModel.fetchBalanceSheetDates()
     }
 
-    BaseScreen(navController = navController) {
+    BaseScreen(navController = navController, onClickAction = {}) {
 
         when {
             completedState.isLoading -> CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))

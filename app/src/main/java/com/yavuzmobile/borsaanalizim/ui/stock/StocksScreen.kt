@@ -2,6 +2,7 @@ package com.yavuzmobile.borsaanalizim.ui.stock
 
 import android.content.pm.ActivityInfo
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -67,8 +68,11 @@ fun StocksScreen(
     val sheetState = rememberModalBottomSheetState()
 
     LaunchedEffect(Unit) {
-        viewModel.onSearchQueryChange("")
-        viewModel.fetchStocks()
+        if (stocksUiState.data == null) {
+            viewModel.fetchStocks()
+        } else {
+            viewModel.onSearchQueryChange("")
+        }
     }
 
     BaseHomeScreen(
@@ -119,7 +123,7 @@ fun StocksScreen(
             onRefresh = { viewModel.refreshStocks() }
         ) {
             when (sectorsUiState.isLoading) {
-                true -> CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
+                true -> Column(Modifier.fillMaxSize()) { CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally)) }
                 else -> {
                     if (stocksUiState.error != null) {
                         Text(
@@ -131,7 +135,7 @@ fun StocksScreen(
             }
 
             when (stocksUiState.isLoading) {
-                true -> CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
+                true -> Column(Modifier.fillMaxSize()) { CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally)) }
                 false -> {
                     if (stocksUiState.error != null) {
                         Text(
