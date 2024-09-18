@@ -20,6 +20,7 @@ import com.yavuzmobile.borsaanalizim.ui.navgraph.NavigationItem
 fun SplashScreen(navController: NavController, viewModel: SplashViewModel = hiltViewModel()) {
 
     val balanceSheetDatesUiState by viewModel.balanceSheetDatesUiState.collectAsState()
+    val stocksUiState by viewModel.stocksUiState.collectAsState()
     val completedState by viewModel.completedUiState.collectAsState()
 
     LaunchedEffect(Unit) {
@@ -27,10 +28,17 @@ fun SplashScreen(navController: NavController, viewModel: SplashViewModel = hilt
     }
 
     BaseScreen(navController = navController) {
+
         when {
-            balanceSheetDatesUiState.isLoading -> {
-                CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
+            completedState.isLoading -> CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
+            completedState.data != null -> {
+                if (completedState.data?.isCompletedBalanceSheetDates == true && completedState.data?.isCompletedStocks == true) {
+                    navController.navigate(NavigationItem.StocksScreen.route)
+                }
             }
+        }
+
+        when {
             balanceSheetDatesUiState.error != null -> {
                 balanceSheetDatesUiState.error?.split("/n")?.forEach { error ->
                     if (error == "null") return@forEach
@@ -38,12 +46,19 @@ fun SplashScreen(navController: NavController, viewModel: SplashViewModel = hilt
                 }
             }
             balanceSheetDatesUiState.data != null -> {
-                Text(text = "Veriler Yüklendi")
+                Text(text = "Hisse Fiyatları Yüklendi")
             }
         }
-
-        if (completedState.data == true) {
-            navController.navigate(NavigationItem.StocksScreen.route)
+        when {
+            stocksUiState.error != null -> {
+                stocksUiState.error?.split("/n")?.forEach { error ->
+                    if (error == "null") return@forEach
+                    Text(text = "Hata -> $error", Modifier.padding(16.dp), color = MaterialTheme.colorScheme.error)
+                }
+            }
+            stocksUiState.data != null -> {
+                Text(text = "Hisseler Yüklendi")
+            }
         }
     }
 }

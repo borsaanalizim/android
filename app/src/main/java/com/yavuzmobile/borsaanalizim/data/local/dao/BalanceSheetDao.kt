@@ -16,17 +16,14 @@ interface BalanceSheetDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertBalanceSheetRatios(stock: BalanceSheetRatiosEntity)
 
-    @Query("SELECT * FROM balance_sheet_table ORDER BY period DESC")
-    suspend fun getAllBalanceSheet(): List<BalanceSheetEntity>
-
-    @Query("SELECT * FROM balance_sheet_ratios_table ORDER BY period DESC")
-    suspend fun getAllBalanceSheetRatios(): List<BalanceSheetRatiosEntity>
+    @Query("SELECT * FROM balance_sheet_ratios_table WHERE period = :period ORDER BY stockCode")
+    suspend fun getBalanceSheetRatiosEntities(period: String): List<BalanceSheetRatiosEntity>
 
     @Query("SELECT * FROM balance_sheet_table WHERE stockCode = :stockCode  ORDER BY period DESC")
-    suspend fun getAllBalanceSheetOfStock(stockCode: String): List<BalanceSheetEntity>
+    suspend fun getAllBalanceSheetsOfStock(stockCode: String): List<BalanceSheetEntity>
 
     @Query("SELECT * FROM balance_sheet_ratios_table WHERE stockCode = :stockCode ORDER BY period DESC")
-    suspend fun getAllBalanceSheetRatiosOfStock(stockCode: String): List<BalanceSheetRatiosEntity>
+    suspend fun getBalanceSheetRatiosListOfStock(stockCode: String): List<BalanceSheetRatiosEntity>
 
     @Query("SELECT * FROM balance_sheet_table WHERE stockCode = :stockCode ORDER BY period DESC LIMIT 12")
     suspend fun getLast12BalanceSheetsOfStock(stockCode: String): List<BalanceSheetEntity>

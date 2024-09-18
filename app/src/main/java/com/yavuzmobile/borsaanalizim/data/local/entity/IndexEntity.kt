@@ -3,9 +3,9 @@ package com.yavuzmobile.borsaanalizim.data.local.entity
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
-@Entity(tableName = "stock_table")
-data class StockEntity(
+@Entity("index_table")
+data class IndexEntity(
     @PrimaryKey
-    val stockCode: String,
-    val stockName: String
+    val code: String,
+    val name: String
 )

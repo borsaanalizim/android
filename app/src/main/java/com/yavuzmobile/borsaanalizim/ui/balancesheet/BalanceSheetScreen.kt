@@ -1,13 +1,16 @@
 package com.yavuzmobile.borsaanalizim.ui.balancesheet
 
 import android.annotation.SuppressLint
+import android.content.pm.ActivityInfo
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
@@ -22,16 +25,29 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.yavuzmobile.borsaanalizim.ext.cleanedNumberFormat
+import com.yavuzmobile.borsaanalizim.ext.findActivity
 import com.yavuzmobile.borsaanalizim.ext.toDoubleOrDefault
 import com.yavuzmobile.borsaanalizim.ui.BaseScreen
 import com.yavuzmobile.borsaanalizim.ui.component.bargraphwizard.BarGraphWizard
-import java.util.Locale
+import com.yavuzmobile.borsaanalizim.util.RatiosConstant.EXPLANATION_COMPANY_VALUE_AND_EBITDA
+import com.yavuzmobile.borsaanalizim.util.RatiosConstant.EXPLANATION_COMPANY_VALUE_AND_NET_SALES
+import com.yavuzmobile.borsaanalizim.util.RatiosConstant.EXPLANATION_MARKET_BOOK_AND_BOOK_VALUE
+import com.yavuzmobile.borsaanalizim.util.RatiosConstant.EXPLANATION_MARKET_VALUE_AND_OPERATION_PROFIT
+import com.yavuzmobile.borsaanalizim.util.RatiosConstant.EXPLANATION_NET_OPERATING_PROFIT_AND_MARKET_VALUE
+import com.yavuzmobile.borsaanalizim.util.RatiosConstant.EXPLANATION_PRICE_AND_EARNING
+import com.yavuzmobile.borsaanalizim.util.RatiosConstant.LABEL_COMPANY_VALUE_AND_EBITDA
+import com.yavuzmobile.borsaanalizim.util.RatiosConstant.LABEL_COMPANY_VALUE_AND_NET_SALES
+import com.yavuzmobile.borsaanalizim.util.RatiosConstant.LABEL_MARKET_BOOK_AND_BOOK_VALUE
+import com.yavuzmobile.borsaanalizim.util.RatiosConstant.LABEL_MARKET_VALUE_AND_OPERATION_PROFIT
+import com.yavuzmobile.borsaanalizim.util.RatiosConstant.LABEL_NET_OPERATING_PROFIT_AND_MARKET_VALUE
+import com.yavuzmobile.borsaanalizim.util.RatiosConstant.LABEL_PRICE_AND_EARNING
 
 @SuppressLint("StateFlowValueCalledInComposition")
 @Composable
@@ -41,6 +57,11 @@ fun BalanceSheetScreen(
     viewModel: BalanceSheetViewModel = hiltViewModel()
 ) {
 
+    val context = LocalContext.current
+    val activity = context.findActivity()
+
+    activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+
     val balanceSheetWithRatiosUiState by viewModel.balanceSheetWithRatiosState.collectAsState()
 
     LaunchedEffect(code) {
@@ -48,7 +69,10 @@ fun BalanceSheetScreen(
     }
 
     BaseScreen(navController, Modifier.fillMaxSize(), code) {
-        Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())) {
             when(balanceSheetWithRatiosUiState.isLoading) {
                 true -> CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
                 false -> {
@@ -56,7 +80,10 @@ fun BalanceSheetScreen(
                         Text(text = "Hata: $error", color = MaterialTheme.colorScheme.error)
                     }
                     balanceSheetWithRatiosUiState.data?.let { balanceSheetWithRatios ->
-                        Column(modifier = Modifier.padding(vertical = 16.dp).fillMaxWidth(), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
+                        Column(modifier = Modifier
+                            .padding(start = 32.dp, end = 16.dp)
+                            .fillMaxWidth(), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
+
                             val currentAssetList = mutableListOf<Double>()
                             val longTermAssetList = mutableListOf<Double>()
                             val equitiesList = mutableListOf<Double>()
@@ -86,8 +113,6 @@ fun BalanceSheetScreen(
                             val longTermLiabilitiesGraphBarDataList = mutableListOf<Float>()
 
                             val periodList = mutableListOf<String>()
-
-
 
                             balanceSheetWithRatios.balanceSheetList.forEach { balanceSheetResponse ->
                                 if (balanceSheetResponse.currentAssets.isEmpty()) return@forEach
@@ -184,7 +209,7 @@ fun BalanceSheetScreen(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(vertical = 8.dp)
+                                .padding(start = 32.dp, end = 16.dp)
                                 .horizontalScroll(rememberScrollState())
                         ) {
                             Column(
@@ -221,7 +246,7 @@ fun BalanceSheetScreen(
                                     .padding(horizontal = 4.dp)
                             ) {
                                 Text(
-                                    "PD / DD",
+                                    LABEL_MARKET_BOOK_AND_BOOK_VALUE,
                                     fontWeight = FontWeight.Bold,
                                     textAlign = TextAlign.Center,
                                     modifier = Modifier.fillMaxWidth()
@@ -248,7 +273,7 @@ fun BalanceSheetScreen(
                                     .padding(horizontal = 4.dp)
                             ) {
                                 Text(
-                                    "F / K",
+                                    LABEL_PRICE_AND_EARNING,
                                     fontWeight = FontWeight.Bold,
                                     textAlign = TextAlign.Center,
                                     modifier = Modifier.fillMaxWidth()
@@ -276,7 +301,7 @@ fun BalanceSheetScreen(
                                     .padding(horizontal = 4.dp)
                             ) {
                                 Text(
-                                    "FD / FAVÖK",
+                                    LABEL_COMPANY_VALUE_AND_EBITDA,
                                     fontWeight = FontWeight.Bold,
                                     textAlign = TextAlign.Center,
                                     modifier = Modifier.fillMaxWidth()
@@ -304,7 +329,7 @@ fun BalanceSheetScreen(
                                     .padding(horizontal = 4.dp)
                             ) {
                                 Text(
-                                    "PD / NFK",
+                                    LABEL_MARKET_VALUE_AND_OPERATION_PROFIT,
                                     fontWeight = FontWeight.Bold,
                                     textAlign = TextAlign.Center,
                                     modifier = Modifier.fillMaxWidth()
@@ -332,7 +357,7 @@ fun BalanceSheetScreen(
                                     .padding(horizontal = 4.dp)
                             ) {
                                 Text(
-                                    "FD / NS",
+                                    LABEL_COMPANY_VALUE_AND_NET_SALES,
                                     fontWeight = FontWeight.Bold,
                                     textAlign = TextAlign.Center,
                                     modifier = Modifier.fillMaxWidth()
@@ -360,7 +385,7 @@ fun BalanceSheetScreen(
                                     .padding(horizontal = 4.dp)
                             ) {
                                 Text(
-                                    "NFK / PD",
+                                    LABEL_NET_OPERATING_PROFIT_AND_MARKET_VALUE,
                                     fontWeight = FontWeight.Bold,
                                     textAlign = TextAlign.Center,
                                     modifier = Modifier.fillMaxWidth()
@@ -382,6 +407,25 @@ fun BalanceSheetScreen(
                                     )
                                 }
                             }
+                        }
+
+                        Spacer(Modifier.height(32.dp))
+
+                        Column(Modifier
+                            .fillMaxWidth()
+                            .padding(start = 32.dp, end = 16.dp)
+                        ) {
+                            Text("$LABEL_MARKET_BOOK_AND_BOOK_VALUE: $EXPLANATION_MARKET_BOOK_AND_BOOK_VALUE")
+                            Spacer(Modifier.height(16.dp))
+                            Text("$LABEL_PRICE_AND_EARNING: $EXPLANATION_PRICE_AND_EARNING")
+                            Spacer(Modifier.height(16.dp))
+                            Text("$LABEL_COMPANY_VALUE_AND_EBITDA: $EXPLANATION_COMPANY_VALUE_AND_EBITDA")
+                            Spacer(Modifier.height(16.dp))
+                            Text("$LABEL_MARKET_VALUE_AND_OPERATION_PROFIT: $EXPLANATION_MARKET_VALUE_AND_OPERATION_PROFIT")
+                            Spacer(Modifier.height(16.dp))
+                            Text("$LABEL_COMPANY_VALUE_AND_NET_SALES: $EXPLANATION_COMPANY_VALUE_AND_NET_SALES")
+                            Spacer(Modifier.height(16.dp))
+                            Text("$LABEL_NET_OPERATING_PROFIT_AND_MARKET_VALUE: $EXPLANATION_NET_OPERATING_PROFIT_AND_MARKET_VALUE")
                         }
                     }
                 }

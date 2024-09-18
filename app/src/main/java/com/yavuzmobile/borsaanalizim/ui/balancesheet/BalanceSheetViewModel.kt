@@ -31,7 +31,7 @@ class BalanceSheetViewModel @Inject constructor(
                     is Result.Loading -> _balanceSheetWithRatiosState.update { state -> state.copy(true) }
                     is Result.Error -> _balanceSheetWithRatiosState.update { state -> state.copy(false, error = resultBalanceSheetDate.error) }
                     is Result.Success -> {
-                        businessInvestmentRepository.getFinancialStatementList(code, resultBalanceSheetDate.data).collect { resultRemote ->
+                        businessInvestmentRepository.getTwelvePeriodFinancialStatementList(code, resultBalanceSheetDate.data).collect { resultRemote ->
                             when (resultRemote) {
                                 is Result.Loading -> _balanceSheetWithRatiosState.update { state -> state.copy(true) }
                                 is Result.Error -> _balanceSheetWithRatiosState.update { state -> state.copy(false, error = resultRemote.error) }

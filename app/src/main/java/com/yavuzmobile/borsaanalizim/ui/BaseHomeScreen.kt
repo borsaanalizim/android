@@ -1,6 +1,5 @@
 package com.yavuzmobile.borsaanalizim.ui
 
-import android.util.Log
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.height
@@ -38,7 +37,7 @@ fun BaseHomeScreen(
             ImageVector.vectorResource(R.drawable.ic_balance_sheet)
         ),
         BottomBarModel(
-            NavigationItem.StocksCompareScreen,
+            NavigationItem.CompareStocksScreen,
             ImageVector.vectorResource(R.drawable.ic_compare)
         ),
         BottomBarModel(
@@ -60,7 +59,6 @@ fun BaseHomeScreen(
                 val currentDestination = navBackStackEntry?.destination
 
                 bottomBars.forEach { bottomBarModel ->
-                    Log.i("CURRENT_DESTINATION", currentDestination.toString())
                     NavigationBarItem(
                         selected = currentDestination?.hierarchy?.any { it.route == bottomBarModel.screen.route } == true,
                         icon = {
@@ -79,7 +77,6 @@ fun BaseHomeScreen(
                                 launchSingleTop = true
                                 restoreState = true
                             }
-                            Log.i("CURRENT_DESTINATION_2", currentDestination.toString())
                         },
                     )
                 }

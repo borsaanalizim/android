@@ -2,14 +2,18 @@ package com.yavuzmobile.borsaanalizim.di
 
 import android.content.Context
 import androidx.room.Room
+import com.google.gson.Gson
 import com.yavuzmobile.borsaanalizim.data.api.Api
 import com.yavuzmobile.borsaanalizim.data.api.BusinessInvestmentApi
 import com.yavuzmobile.borsaanalizim.data.local.AppDatabase
 import com.yavuzmobile.borsaanalizim.data.local.dao.BalanceSheetDao
+import com.yavuzmobile.borsaanalizim.data.local.dao.BalanceSheetDateDao
+import com.yavuzmobile.borsaanalizim.data.local.dao.IndexDao
+import com.yavuzmobile.borsaanalizim.data.local.dao.SectorDao
 import com.yavuzmobile.borsaanalizim.data.local.dao.StockDao
 import com.yavuzmobile.borsaanalizim.data.repository.local.LocalRepository
 import com.yavuzmobile.borsaanalizim.data.repository.remote.BusinessInvestmentRepository
-import com.yavuzmobile.borsaanalizim.data.repository.remote.StockMarketAnalysisRepository
+import com.yavuzmobile.borsaanalizim.data.repository.remote.RemoteRepository
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -26,6 +30,10 @@ import javax.inject.Singleton
 @Module
 @InstallIn(SingletonComponent::class)
 object AppModule {
+
+    @Provides
+    @Singleton
+    fun provideGson(): Gson = Gson()
 
     @Provides
     @Singleton
@@ -63,20 +71,23 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideApi(@Named("Default") retrofit: Retrofit): BusinessInvestmentApi = retrofit.create(BusinessInvestmentApi::class.java)
+    fun provideApi(@Named("Default") retrofit: Retrofit): BusinessInvestmentApi =
+        retrofit.create(BusinessInvestmentApi::class.java)
 
     @Provides
     @Singleton
     fun provideFinTablesApi(@Named("BalanceSheetRatiosEntity") retrofit: Retrofit): Api = retrofit.create(
-        Api::class.java)
+        Api::class.java
+    )
 
     @Provides
     @Singleton
-    fun provideRemoteRepository(api: BusinessInvestmentApi, balanceSheetDao: BalanceSheetDao): BusinessInvestmentRepository = BusinessInvestmentRepository(api, balanceSheetDao)
+    fun provideRemoteRepository(api: BusinessInvestmentApi, balanceSheetDao: BalanceSheetDao): BusinessInvestmentRepository =
+        BusinessInvestmentRepository(api, balanceSheetDao)
 
     @Provides
     @Singleton
-    fun provideStockMarketAnalysisRepository(api: Api): StockMarketAnalysisRepository = StockMarketAnalysisRepository(api)
+    fun provideStockMarketAnalysisRepository(api: Api): RemoteRepository = RemoteRepository(api)
 
     @Provides
     @Singleton
@@ -88,13 +99,31 @@ object AppModule {
 
     @Provides
     @Singleton
+    fun provideBalanceSheetDateDao(database: AppDatabase): BalanceSheetDateDao = database.balanceSheetDateDao()
+
+    @Provides
+    @Singleton
+    fun provideBalanceSheetDao(database: AppDatabase): BalanceSheetDao = database.balanceSheetDao()
+
+    @Provides
+    @Singleton
+    fun provideIndexDao(database: AppDatabase): IndexDao = database.indexDao()
+
+    @Provides
+    @Singleton
+    fun provideSectorDao(database: AppDatabase): SectorDao = database.sectorDao()
+
+    @Provides
+    @Singleton
     fun provideStockDao(database: AppDatabase): StockDao = database.stockDao()
 
     @Provides
     @Singleton
-    fun provideBalanceSheetDao(database: AppDatabase): BalanceSheetDao = database.financialStatementDao()
-
-    @Provides
-    @Singleton
-    fun provideLocalRepository(stockDao: StockDao, balanceSheetDao: BalanceSheetDao): LocalRepository = LocalRepository(stockDao, balanceSheetDao)
+    fun provideLocalRepository(
+        balanceSheetDateDao: BalanceSheetDateDao,
+        balanceSheetDao: BalanceSheetDao,
+        stockDao: StockDao,
+        sectorDao: SectorDao,
+        indexDao: IndexDao
+    ): LocalRepository = LocalRepository(balanceSheetDateDao, balanceSheetDao, stockDao, sectorDao, indexDao)
 }

@@ -1,6 +1,5 @@
 package com.yavuzmobile.borsaanalizim.util
 
-import android.util.Log
 import com.yavuzmobile.borsaanalizim.model.YearMonth
 import java.text.SimpleDateFormat
 import java.time.LocalDate
@@ -57,6 +56,43 @@ object DateUtil {
         return dateFormat.parse(fourYearsTimeAgo.format(formatter))
     }
 
+    fun getLastFourPeriods(): List<YearMonth> {
+        try {
+            val today = LocalDate.now()
+            val periods = mutableListOf<YearMonth>()
+            val year = today.year
+            val month = today.monthValue
+            var periodYear = year
+            var periodMonth = month
+
+
+            for (i in 0 until 4) {
+                when {
+                    month in 1..2 -> {
+                        periodYear -= 1
+                        periodMonth = 12
+                        periods.add(YearMonth("$periodYear", "$periodMonth"))
+                    }
+                    periodMonth % 3 == 0 -> {
+                        periodMonth -= 3
+                        if (periodMonth == 0) {
+                            periodYear -= 1
+                            periodMonth = 12
+                        }
+                        periods.add(YearMonth("$periodYear", "$periodMonth"))
+                    }
+                    else -> {
+                        periodMonth -= periodMonth % 3
+                        periods.add(YearMonth("$periodYear", "$periodMonth"))
+                    }
+                }
+            }
+            return periods
+        } catch (e: Exception) {
+            return emptyList()
+        }
+    }
+
     fun getLastTwelvePeriods(): List<YearMonth> {
         try {
             val today = LocalDate.now()
@@ -90,7 +126,6 @@ object DateUtil {
             }
             return periods
         } catch (e: Exception) {
-            Log.e("DATE EXCEPTION", e.message.toString())
             return emptyList()
         }
     }
