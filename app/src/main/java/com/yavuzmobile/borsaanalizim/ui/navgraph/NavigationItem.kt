@@ -7,9 +7,7 @@ sealed class NavigationItem(val route: String) {
         fun createRoute(code: String) = "balance_sheet_screen/$code"
     }
     data object CompareStocksScreen: NavigationItem("compare_stocks_screen")
-    data object CompareStocksDetailScreen: NavigationItem("compare_stocks_detail_screen/{stocks}") {
-        fun createRoute(stocksJSON: String) = "compare_stocks_detail_screen/$stocksJSON"
-    }
+    data object CompareStocksDetailScreen: NavigationItem("compare_stocks_detail_screen")
     data object FavoriteScreen: NavigationItem("favorite_screen")
     data object AccountScreen: NavigationItem("account_screen")
 }

@@ -1,9 +1,7 @@
 package com.yavuzmobile.borsaanalizim.ui.comparestocks
 
-import android.util.Base64
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.google.gson.Gson
 import com.yavuzmobile.borsaanalizim.data.Result
 import com.yavuzmobile.borsaanalizim.data.local.entity.BalanceSheetDateStockWithDates
 import com.yavuzmobile.borsaanalizim.data.local.entity.BalanceSheetRatiosEntity
@@ -21,6 +19,7 @@ import com.yavuzmobile.borsaanalizim.model.UiState
 import com.yavuzmobile.borsaanalizim.model.YearMonth
 import com.yavuzmobile.borsaanalizim.util.Constant
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -33,12 +32,12 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+@OptIn(FlowPreview::class)
 @HiltViewModel
 class CompareStocksViewModel @Inject constructor(
     private val localRepository: LocalRepository,
     private val remoteRepository: RemoteRepository,
-    private val businessInvestmentRepository: BusinessInvestmentRepository,
-    private val gson: Gson
+    private val businessInvestmentRepository: BusinessInvestmentRepository
 ): ViewModel() {
 
     private val _stocksFilterUiState = MutableStateFlow(UiState<StocksFilter>())
@@ -73,6 +72,9 @@ class CompareStocksViewModel @Inject constructor(
 
     private val _completedAllDownloadsUiState = MutableStateFlow(UiState<Boolean>())
     val completedAllDownloadsUiState: StateFlow<UiState<Boolean>> = _completedAllDownloadsUiState.asStateFlow()
+
+    private val _selectedStocksUiState = MutableStateFlow<List<StockFilter>>(emptyList())
+    val selectedStocksUiState: StateFlow<List<StockFilter>> = _selectedStocksUiState.asStateFlow()
 
     init {
         viewModelScope.launch {
@@ -342,8 +344,9 @@ class CompareStocksViewModel @Inject constructor(
         }
     }
 
-    fun parseJSON(list: List<StockFilter>): String {
-        val json = gson.toJson(list)
-        return Base64.encodeToString(json.toByteArray(), Base64.DEFAULT)
+    fun setSelectedStocks(value: List<StockFilter>) {
+        viewModelScope.launch {
+            _selectedStocksUiState.update { value }
+        }
     }
 }

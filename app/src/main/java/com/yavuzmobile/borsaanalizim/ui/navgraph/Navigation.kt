@@ -1,17 +1,16 @@
 package com.yavuzmobile.borsaanalizim.ui.navgraph
 
-import android.util.Base64
 import androidx.compose.runtime.Composable
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import com.google.gson.Gson
-import com.yavuzmobile.borsaanalizim.model.StockFilter
 import com.yavuzmobile.borsaanalizim.ui.account.AccountScreen
 import com.yavuzmobile.borsaanalizim.ui.balancesheet.BalanceSheetScreen
 import com.yavuzmobile.borsaanalizim.ui.comparestocks.CompareStocksScreen
+import com.yavuzmobile.borsaanalizim.ui.comparestocks.CompareStocksViewModel
 import com.yavuzmobile.borsaanalizim.ui.comparestocksdetail.CompareStocksDetailScreen
 import com.yavuzmobile.borsaanalizim.ui.favorite.FavoriteScreen
 import com.yavuzmobile.borsaanalizim.ui.splash.SplashScreen
@@ -21,6 +20,7 @@ import com.yavuzmobile.borsaanalizim.ui.stock.StocksScreen
 fun Navigation() {
 
     val navController = rememberNavController()
+    val compareStocksViewModel: CompareStocksViewModel = hiltViewModel()
 
     NavHost(
         navController = navController,
@@ -45,19 +45,10 @@ fun Navigation() {
             BalanceSheetScreen(navController, code)
         }
         composable(NavigationItem.CompareStocksScreen.route) {
-            CompareStocksScreen(navController)
+            CompareStocksScreen(navController, compareStocksViewModel)
         }
-        composable(
-            NavigationItem.CompareStocksDetailScreen.route,
-            arguments = listOf(navArgument("stocks") {
-                type = NavType.StringType
-                nullable = false
-            })
-            ) { currentBackStackEntry ->
-            val stocksEncoded = currentBackStackEntry.arguments?.getString("stocks")
-            val stocksDecoded = String(Base64.decode(stocksEncoded, Base64.DEFAULT))
-            val stocks = Gson().fromJson(stocksDecoded, Array<StockFilter>::class.java).toList()
-            CompareStocksDetailScreen(navController, stocks)
+        composable(NavigationItem.CompareStocksDetailScreen.route) {
+            CompareStocksDetailScreen(navController, compareStocksViewModel)
         }
         composable(NavigationItem.FavoriteScreen.route) {
             FavoriteScreen(navController)

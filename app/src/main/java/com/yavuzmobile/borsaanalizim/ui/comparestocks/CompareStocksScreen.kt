@@ -311,7 +311,8 @@ fun CompareStocksScreen(
                 .weight(0.6f)) {
             ElevatedButton(
                 onClick = {
-                    navController.navigate(NavigationItem.CompareStocksDetailScreen.createRoute(viewModel.parseJSON(selectedItems)))
+                    viewModel.setSelectedStocks(selectedItems)
+                    navController.navigate(NavigationItem.CompareStocksDetailScreen.route)
                 },
                 modifier = Modifier.fillMaxWidth(),
                 shape = RectangleShape,

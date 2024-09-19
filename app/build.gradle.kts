@@ -5,6 +5,7 @@ plugins {
     id("kotlin-parcelize")
     kotlin("plugin.serialization") version "1.9.0"
     id("com.google.dagger.hilt.android")
+    alias(libs.plugins.compose.compiler)
 }
 
 android {
@@ -76,9 +77,9 @@ dependencies {
 
     implementation(libs.androidx.navigation.compose)
 
-    implementation("com.google.dagger:hilt-android:2.48")
-    implementation("androidx.hilt:hilt-navigation-compose:1.2.0")
-    kapt("com.google.dagger:hilt-android-compiler:2.48")
+    implementation(libs.hilt.android)
+    implementation(libs.androidx.hilt.navigation.compose)
+    kapt(libs.hilt.android.compiler)
 
     // Retrofit and OkHttp
     implementation(libs.retrofit)
@@ -91,8 +92,8 @@ dependencies {
     implementation(libs.kotlinx.coroutines.android)
 
     // ViewModel
-    implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.5")
-    implementation("androidx.lifecycle:lifecycle-livedata-ktx:2.8.5")
+    implementation(libs.androidx.lifecycle.viewmodel.ktx)
+    implementation(libs.androidx.lifecycle.livedata.ktx)
 
     // Jsoup for HTML parsing
     implementation(libs.jsoup)

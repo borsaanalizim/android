@@ -21,6 +21,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -65,7 +67,6 @@ import java.util.Locale
 @Composable
 fun CompareStocksDetailScreen(
     navController: NavController,
-    stocks: List<StockFilter>,
     viewModel: CompareStocksViewModel = hiltViewModel()
 ) {
 
@@ -73,6 +74,8 @@ fun CompareStocksDetailScreen(
     val activity = context.findActivity()
 
     activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+
+    val stocks by viewModel.selectedStocksUiState.collectAsState()
 
     val selectedSort = remember { mutableStateOf(SortByBalanceSheetRatios.STOCK_CODE) }
 
