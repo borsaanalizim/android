@@ -1,6 +1,5 @@
 package com.yavuzmobile.borsaanalizim.ui.balancesheet
 
-import android.annotation.SuppressLint
 import android.content.pm.ActivityInfo
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
@@ -22,6 +21,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -57,7 +57,6 @@ import com.yavuzmobile.borsaanalizim.util.RatiosConstant.LABEL_PRICE_AND_EARNING
 import com.yavuzmobile.borsaanalizim.util.ShareUtil
 import kotlinx.coroutines.launch
 
-@SuppressLint("StateFlowValueCalledInComposition")
 @Composable
 fun BalanceSheetScreen(
     navController: NavController,
@@ -75,8 +74,10 @@ fun BalanceSheetScreen(
     val coroutineScope = rememberCoroutineScope()
     val graphicsLayerTableRatios = rememberGraphicsLayer()
 
-    LaunchedEffect(code) {
-        viewModel.fetchData(code)
+    val rememberedCode = remember { code }
+
+    LaunchedEffect(rememberedCode) {
+        viewModel.getBalanceSheetsByStock(code)
     }
 
     BaseScreen(navController, Modifier.fillMaxSize(), code, actionButton = ActionButtons.SHARE, onClickAction = {
@@ -130,7 +131,7 @@ fun BalanceSheetScreen(
 
                             val periodList = mutableListOf<String>()
 
-                            balanceSheetWithRatios.balanceSheetList.forEach { balanceSheetResponse ->
+                            balanceSheetWithRatios.balanceSheets.forEach { balanceSheetResponse ->
                                 if (balanceSheetResponse.currentAssets.isEmpty()) return@forEach
                                 currentAssetList.add(balanceSheetResponse.currentAssets.toDoubleOrDefault())
                                 longTermAssetList.add(balanceSheetResponse.longTermAssets.toDoubleOrDefault())
@@ -198,29 +199,29 @@ fun BalanceSheetScreen(
                             BarGraphWizard("DÖNEM NET KAR/ZARAR", netProfitAndLossPeriodGraphBarDataList, periodList, netProfitAndLossPeriodList)
                             BarGraphWizard("NAKİT VE NAKİT BENZERLERİ", cashAndCashEquivalentsGraphBarDataList, periodList, cashAndCashEquivalentsList)
                             BarGraphWizard("FİNANSAL YATIRIMLAR", financialInvestmentsGraphBarDataList, periodList, financialInvestmentsList)
-                            BarGraphWizard("K.V. FİNANSAL BORÇLAR", financialDebtsShortGraphBarDataList, periodList, financialDebtsShortList)
-                            BarGraphWizard("U.V. FİNANSAL BORÇLAR", financialDebtsLongGraphBarDataList, periodList, financialDebtsLongList)
-                            BarGraphWizard("KISA VADELİ YÜKÜMLÜLÜKLER", shortTermLiabilitiesGraphBarDataList, periodList, shortTermLiabilitiesList)
-                            BarGraphWizard("UZUN VADELİ YÜKÜMLÜLÜKLER", longTermLiabilitiesGraphBarDataList, periodList, longTermLiabilitiesList)
+                            BarGraphWizard("K.V FİNANSAL BORÇLAR", financialDebtsShortGraphBarDataList, periodList, financialDebtsShortList)
+                            BarGraphWizard("U.V FİNANSAL BORÇLAR", financialDebtsLongGraphBarDataList, periodList, financialDebtsLongList)
+                            BarGraphWizard("K.V YÜKÜMLÜLÜKLER", shortTermLiabilitiesGraphBarDataList, periodList, shortTermLiabilitiesList)
+                            BarGraphWizard("U.V YÜKÜMLÜLÜKLER", longTermLiabilitiesGraphBarDataList, periodList, longTermLiabilitiesList)
                         }
 
-                        val marketBookAndBookValueMin = balanceSheetWithRatios.balanceSheetRatios.minOfOrNull { it.marketBookAndBookValue.cleanedNumberFormat().toDoubleOrDefault() } ?: 0.0
-                        val marketBookAndBookValueMax = balanceSheetWithRatios.balanceSheetRatios.maxOfOrNull { it.marketBookAndBookValue.cleanedNumberFormat().toDoubleOrDefault() } ?: 1.0
+                        val marketBookAndBookValueMin = balanceSheetWithRatios.ratios.minOfOrNull { it.marketBookAndBookValue.cleanedNumberFormat().toDoubleOrDefault() } ?: 0.0
+                        val marketBookAndBookValueMax = balanceSheetWithRatios.ratios.maxOfOrNull { it.marketBookAndBookValue.cleanedNumberFormat().toDoubleOrDefault() } ?: 1.0
 
-                        val priceAndEarningMin = balanceSheetWithRatios.balanceSheetRatios.minOfOrNull { it.priceAndEarning.cleanedNumberFormat().toDoubleOrDefault() } ?: 0.0
-                        val priceAndEarningMax = balanceSheetWithRatios.balanceSheetRatios.maxOfOrNull { it.priceAndEarning.cleanedNumberFormat().toDoubleOrDefault() } ?: 1.0
+                        val priceAndEarningMin = balanceSheetWithRatios.ratios.minOfOrNull { it.priceAndEarning.cleanedNumberFormat().toDoubleOrDefault() } ?: 0.0
+                        val priceAndEarningMax = balanceSheetWithRatios.ratios.maxOfOrNull { it.priceAndEarning.cleanedNumberFormat().toDoubleOrDefault() } ?: 1.0
 
-                        val companyValueAndEbitdaMin = balanceSheetWithRatios.balanceSheetRatios.minOfOrNull { it.companyValueAndEbitda.cleanedNumberFormat().toDoubleOrDefault() } ?: 0.0
-                        val companyValueAndEbitdaMax = balanceSheetWithRatios.balanceSheetRatios.maxOfOrNull { it.companyValueAndEbitda.cleanedNumberFormat().toDoubleOrDefault() } ?: 1.0
+                        val companyValueAndEbitdaMin = balanceSheetWithRatios.ratios.minOfOrNull { it.companyValueAndEbitda.cleanedNumberFormat().toDoubleOrDefault() } ?: 0.0
+                        val companyValueAndEbitdaMax = balanceSheetWithRatios.ratios.maxOfOrNull { it.companyValueAndEbitda.cleanedNumberFormat().toDoubleOrDefault() } ?: 1.0
 
-                        val marketValueAndNetOperatingProfitMin = balanceSheetWithRatios.balanceSheetRatios.minOfOrNull { it.marketValueAndNetOperatingProfit.cleanedNumberFormat().toDoubleOrDefault() } ?: 0.0
-                        val marketValueAndNetOperatingProfitMax = balanceSheetWithRatios.balanceSheetRatios.maxOfOrNull { it.marketValueAndNetOperatingProfit.cleanedNumberFormat().toDoubleOrDefault() } ?: 1.0
+                        val marketValueAndNetOperatingProfitMin = balanceSheetWithRatios.ratios.minOfOrNull { it.marketValueAndNetOperatingProfit.cleanedNumberFormat().toDoubleOrDefault() } ?: 0.0
+                        val marketValueAndNetOperatingProfitMax = balanceSheetWithRatios.ratios.maxOfOrNull { it.marketValueAndNetOperatingProfit.cleanedNumberFormat().toDoubleOrDefault() } ?: 1.0
 
-                        val companyValueAndNetSalesMin = balanceSheetWithRatios.balanceSheetRatios.minOfOrNull { it.companyValueAndNetSales.cleanedNumberFormat().toDoubleOrDefault() } ?: 0.0
-                        val companyValueAndNetSalesMax = balanceSheetWithRatios.balanceSheetRatios.maxOfOrNull { it.companyValueAndNetSales.cleanedNumberFormat().toDoubleOrDefault() } ?: 1.0
+                        val companyValueAndNetSalesMin = balanceSheetWithRatios.ratios.minOfOrNull { it.companyValueAndNetSales.cleanedNumberFormat().toDoubleOrDefault() } ?: 0.0
+                        val companyValueAndNetSalesMax = balanceSheetWithRatios.ratios.maxOfOrNull { it.companyValueAndNetSales.cleanedNumberFormat().toDoubleOrDefault() } ?: 1.0
 
-                        val netOperatingProfitAndMarketValueMin = balanceSheetWithRatios.balanceSheetRatios.minOfOrNull { it.netOperatingProfitAndMarketValue.cleanedNumberFormat().toDoubleOrDefault() } ?: 0.0
-                        val netOperatingProfitAndMarketValueMax = balanceSheetWithRatios.balanceSheetRatios.maxOfOrNull { it.netOperatingProfitAndMarketValue.cleanedNumberFormat().toDoubleOrDefault() } ?: 1.0
+                        val netOperatingProfitAndMarketValueMin = balanceSheetWithRatios.ratios.minOfOrNull { it.netOperatingProfitAndMarketValue.cleanedNumberFormat().toDoubleOrDefault() } ?: 0.0
+                        val netOperatingProfitAndMarketValueMax = balanceSheetWithRatios.ratios.maxOfOrNull { it.netOperatingProfitAndMarketValue.cleanedNumberFormat().toDoubleOrDefault() } ?: 1.0
 
                         Row(
                             modifier = Modifier
@@ -239,10 +240,7 @@ fun BalanceSheetScreen(
                                     .padding(horizontal = 4.dp)
                             ) {
                                 Text("DÖNEM", fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
-                                balanceSheetWithRatios.balanceSheetRatios.forEach { balanceSheet ->
-                                    if (balanceSheet.marketBookAndBookValue.cleanedNumberFormat().toDoubleOrDefault().isNaN()) {
-                                        return@forEach
-                                    }
+                                balanceSheetWithRatios.ratios.forEach { balanceSheet ->
                                     Text(balanceSheet.period, modifier = Modifier.fillMaxWidth())
                                 }
                             }
@@ -257,7 +255,7 @@ fun BalanceSheetScreen(
                                     textAlign = TextAlign.Center,
                                     modifier = Modifier.fillMaxWidth()
                                 )
-                                balanceSheetWithRatios.balanceSheetRatios.forEach { balanceSheet ->
+                                balanceSheetWithRatios.ratios.forEach { balanceSheet ->
                                     Text(balanceSheet.price, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
                                 }
                             }
@@ -272,10 +270,7 @@ fun BalanceSheetScreen(
                                     textAlign = TextAlign.Center,
                                     modifier = Modifier.fillMaxWidth()
                                 )
-                                balanceSheetWithRatios.balanceSheetRatios.forEach { balanceSheet ->
-                                    if (balanceSheet.marketBookAndBookValue.cleanedNumberFormat().toDoubleOrDefault().isNaN()) {
-                                        return@forEach
-                                    }
+                                balanceSheetWithRatios.ratios.forEach { balanceSheet ->
                                     val backgroundColor = getBackgroundColor(
                                         balanceSheet.marketBookAndBookValue.cleanedNumberFormat().toDoubleOrDefault(),
                                         marketBookAndBookValueMin,
@@ -299,11 +294,8 @@ fun BalanceSheetScreen(
                                     textAlign = TextAlign.Center,
                                     modifier = Modifier.fillMaxWidth()
                                 )
-                                balanceSheetWithRatios.balanceSheetRatios.forEach { balanceSheet ->
-                                    if (balanceSheet.marketBookAndBookValue.cleanedNumberFormat().toDoubleOrDefault().isNaN()) {
-                                        return@forEach
-                                    }
-                                    val backgroundColor = getBackgroundColor(
+                                balanceSheetWithRatios.ratios.forEach { balanceSheet ->
+                                   val backgroundColor = getBackgroundColor(
                                         balanceSheet.priceAndEarning.cleanedNumberFormat().toDoubleOrDefault(),
                                         priceAndEarningMin,
                                         priceAndEarningMax
@@ -327,10 +319,7 @@ fun BalanceSheetScreen(
                                     textAlign = TextAlign.Center,
                                     modifier = Modifier.fillMaxWidth()
                                 )
-                                balanceSheetWithRatios.balanceSheetRatios.forEach { balanceSheet ->
-                                    if (balanceSheet.marketBookAndBookValue.cleanedNumberFormat().toDoubleOrDefault().isNaN()) {
-                                        return@forEach
-                                    }
+                                balanceSheetWithRatios.ratios.forEach { balanceSheet ->
                                     val backgroundColor = getBackgroundColor(
                                         balanceSheet.companyValueAndEbitda.cleanedNumberFormat().toDoubleOrDefault(),
                                         companyValueAndEbitdaMin,
@@ -355,10 +344,7 @@ fun BalanceSheetScreen(
                                     textAlign = TextAlign.Center,
                                     modifier = Modifier.fillMaxWidth()
                                 )
-                                balanceSheetWithRatios.balanceSheetRatios.forEach { balanceSheet ->
-                                    if (balanceSheet.marketBookAndBookValue.cleanedNumberFormat().toDoubleOrDefault().isNaN()) {
-                                        return@forEach
-                                    }
+                                balanceSheetWithRatios.ratios.forEach { balanceSheet ->
                                     val backgroundColor = getBackgroundColor(
                                         balanceSheet.marketValueAndNetOperatingProfit.cleanedNumberFormat().toDoubleOrDefault(),
                                         marketValueAndNetOperatingProfitMin,
@@ -374,7 +360,7 @@ fun BalanceSheetScreen(
                             }
                             Column(
                                 Modifier
-                                    .width(75.dp)
+                                    .width(90.dp)
                                     .padding(horizontal = 4.dp)
                             ) {
                                 Text(
@@ -383,10 +369,7 @@ fun BalanceSheetScreen(
                                     textAlign = TextAlign.Center,
                                     modifier = Modifier.fillMaxWidth()
                                 )
-                                balanceSheetWithRatios.balanceSheetRatios.forEach { balanceSheet ->
-                                    if (balanceSheet.marketBookAndBookValue.cleanedNumberFormat().toDoubleOrDefault().isNaN()) {
-                                        return@forEach
-                                    }
+                                balanceSheetWithRatios.ratios.forEach { balanceSheet ->
                                     val backgroundColor = getBackgroundColor(
                                         balanceSheet.companyValueAndNetSales.cleanedNumberFormat().toDoubleOrDefault(),
                                         companyValueAndNetSalesMin,
@@ -411,10 +394,7 @@ fun BalanceSheetScreen(
                                     textAlign = TextAlign.Center,
                                     modifier = Modifier.fillMaxWidth()
                                 )
-                                balanceSheetWithRatios.balanceSheetRatios.forEach { balanceSheet ->
-                                    if (balanceSheet.marketBookAndBookValue.cleanedNumberFormat().toDoubleOrDefault().isNaN()) {
-                                        return@forEach
-                                    }
+                                balanceSheetWithRatios.ratios.forEach { balanceSheet ->
                                     val backgroundColor = getBackgroundColor(
                                         balanceSheet.netOperatingProfitAndMarketValue.cleanedNumberFormat().toDoubleOrDefault(),
                                         netOperatingProfitAndMarketValueMin,
@@ -476,14 +456,6 @@ fun getBackgroundColor(value: Double, min: Double, max: Double, isInverted: Bool
     val maxEight = mid - (max - mid) / 10 * 7
     val maxNine = mid - (max - mid) / 10 * 8
     val maxTen = mid - (max - mid) / 10 * 9
-
-    // 00DB00 - 0, 219, 0 - 70%, 0%, 100%, 0%
-    // 78FC78 - 120, 252, 120 - 46%, 0%, 78%, 0%
-    // C3F9C3 - 195, 249, 195 - 22%, 0%, 32%, 0%
-    // FACEA6 - 250, 206, 166 - 2%, 20%, 35%, 0% - mid
-    // FA9B9B - 250, 155, 155 - 1%, 48%, 27%, 0%
-    // FA6868 - 250, 1, 104 - 0%, 99%, 35%, 0%
-    // FF0000 - 255, 0, 0 - 0%, 99%, 100%, 0%
 
     return when {
         value < 0 -> if (isInverted) Color(0xFFA30000)  else Color(0xFFD5D5D5)

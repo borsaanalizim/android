@@ -18,6 +18,9 @@ interface BalanceSheetDateDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertDates(dates: List<DateEntity>)
 
+    @Query("SELECT * FROM balance_sheet_date_stock_table WHERE stockCode = :stockCode")
+    suspend fun getStockLastPrice(stockCode: String): BalanceSheetDateStockEntity?
+
     @Transaction
     @Query("""
         SELECT * FROM balance_sheet_date_stock_table balanceSheetDateStock

@@ -1,8 +1,9 @@
 package com.yavuzmobile.borsaanalizim.ui.splash
 
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -19,8 +20,6 @@ import com.yavuzmobile.borsaanalizim.ui.navgraph.NavigationItem
 @Composable
 fun SplashScreen(navController: NavController, viewModel: SplashViewModel = hiltViewModel()) {
 
-    val balanceSheetDatesUiState by viewModel.balanceSheetDatesUiState.collectAsState()
-    val stocksUiState by viewModel.stocksUiState.collectAsState()
     val completedState by viewModel.completedUiState.collectAsState()
 
     LaunchedEffect(Unit) {
@@ -28,36 +27,26 @@ fun SplashScreen(navController: NavController, viewModel: SplashViewModel = hilt
     }
 
     BaseScreen(navController = navController, onClickAction = {}) {
-
-        when {
-            completedState.isLoading -> CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
-            completedState.data != null -> {
-                if (completedState.data?.isCompletedBalanceSheetDates == true && completedState.data?.isCompletedStocks == true) {
-                    navController.navigate(NavigationItem.StocksScreen.route)
+        Column(Modifier.fillMaxSize()) {
+            when (completedState.isLoading){
+                true -> CircularProgressIndicator(modifier = Modifier.padding(top = 16.dp).align(Alignment.CenterHorizontally))
+                else -> {
+                    completedState.error?.let {
+                        Text("Hata: $it")
+                    }
+                    completedState.data?.let {
+                        if (it.isCompletedBalanceSheetDates) {
+                            Text("Bilanço tarih verileri indirildi")
+                        }
+                        if (it.isCompletedStocks) {
+                            Text("Şirketlerin verileri indirildi")
+                        }
+                        if (it.isCompletedBalanceSheetDates && it.isCompletedStocks) {
+                            Text("Tüm Veriler İndirildi")
+                            navController.navigate(NavigationItem.StocksScreen.route)
+                        }
+                    }
                 }
-            }
-        }
-
-        when {
-            balanceSheetDatesUiState.error != null -> {
-                balanceSheetDatesUiState.error?.split("/n")?.forEach { error ->
-                    if (error == "null") return@forEach
-                    Text(text = "Hata -> $error", Modifier.padding(16.dp), color = MaterialTheme.colorScheme.error)
-                }
-            }
-            balanceSheetDatesUiState.data != null -> {
-                Text(text = "Hisse Fiyatları Yüklendi")
-            }
-        }
-        when {
-            stocksUiState.error != null -> {
-                stocksUiState.error?.split("/n")?.forEach { error ->
-                    if (error == "null") return@forEach
-                    Text(text = "Hata -> $error", Modifier.padding(16.dp), color = MaterialTheme.colorScheme.error)
-                }
-            }
-            stocksUiState.data != null -> {
-                Text(text = "Hisseler Yüklendi")
             }
         }
     }

@@ -23,7 +23,7 @@ interface StockDao {
     suspend fun insertStockInSectors(stockInSectors: List<StockInSectorEntity>)
 
     @Transaction
-    @Query("SELECT * FROM stock_table")
+    @Query("SELECT * FROM stock_table ORDER BY stockCode")
     suspend fun getAllStocks(): List<StockAndIndexAndSectorEntity>
 
     @Transaction
@@ -32,7 +32,7 @@ interface StockDao {
 
     @Transaction
     @Query("""
-        SELECT s.stockCode, s.stockName FROM stock_table s
+        SELECT * FROM stock_table s
         INNER JOIN stock_in_index_table i ON s.stockCode = i.stockCode
         WHERE s.stockCode = :stockCode AND i.category = :index
     """)
@@ -40,7 +40,7 @@ interface StockDao {
 
     @Transaction
     @Query("""
-        SELECT s.stockCode, s.stockName FROM stock_table s
+        SELECT * FROM stock_table s
         INNER JOIN stock_in_sector_table se ON s.stockCode = se.stockCode
         WHERE s.stockCode = :stockCode AND se.category = :sector
     """)
@@ -48,7 +48,7 @@ interface StockDao {
 
     @Transaction
     @Query("""
-        SELECT s.stockCode, s.stockName FROM stock_table s
+        SELECT * FROM stock_table s
         INNER JOIN stock_in_index_table i ON s.stockCode = i.stockCode
         INNER JOIN stock_in_sector_table se ON s.stockCode = se.stockCode
         WHERE s.stockCode = :stockCode AND i.category = :index AND se.category = :sector

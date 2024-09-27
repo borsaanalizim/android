@@ -7,5 +7,6 @@ import androidx.room.PrimaryKey
 data class StockEntity(
     @PrimaryKey
     val stockCode: String,
-    val stockName: String
+    val stockName: String,
+    val financialGroup: String
 )

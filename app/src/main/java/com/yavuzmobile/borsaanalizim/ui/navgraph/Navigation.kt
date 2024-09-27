@@ -32,15 +32,7 @@ fun Navigation() {
         composable(NavigationItem.StocksScreen.route) {
             StocksScreen(navController)
         }
-        composable(
-            NavigationItem.BalanceSheetScreen.route,
-            arguments = listOf(
-                navArgument("code") {
-                    type = NavType.StringType
-                    nullable = false
-                },
-            ),
-        ) { currentBackStackEntry ->
+        composable(NavigationItem.BalanceSheetScreen.route) { currentBackStackEntry ->
             val code: String = currentBackStackEntry.arguments?.getString("code").orEmpty()
             BalanceSheetScreen(navController, code)
         }

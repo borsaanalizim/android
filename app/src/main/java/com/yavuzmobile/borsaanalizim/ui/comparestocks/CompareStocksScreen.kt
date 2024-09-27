@@ -15,7 +15,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -69,7 +69,6 @@ fun CompareStocksScreen(
     activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR
 
     val stocksFilterUiState by viewModel.stocksFilterUiState.collectAsState()
-    val downloadedBalanceSheetByStockSize by viewModel.downloadedBalanceSheetByStockSize.collectAsState()
     val completedAllDownloadsUiState by viewModel.completedAllDownloadsUiState.collectAsState()
     val indexesUiState by viewModel.indexesUiState.collectAsState()
     val sectorsUiState by viewModel.sectorsUiState.collectAsState()
@@ -86,7 +85,6 @@ fun CompareStocksScreen(
     LaunchedEffect(Unit) {
         selectedItems.clear()
         viewModel.onSearchQueryChange("")
-        viewModel.fetchFilterBalanceSheetStocks()
     }
 
     BaseHomeScreen(
@@ -99,7 +97,12 @@ fun CompareStocksScreen(
             AlertDialog(
                 onDismissRequest = { showAlert = false },
                 confirmButton = {
-                    Button(onClick = { showAlert = false }) {
+                    Button(
+                        onClick = {
+                            showAlert = false
+                            viewModel.downloadAllBalanceSheets()
+                        }
+                    ) {
                         Text(text = "Devam Et")
                     }
                 },
@@ -182,31 +185,21 @@ fun CompareStocksScreen(
                     }
                 }
 
-                when(completedAllDownloadsUiState.isLoading) {
+                when(stocksFilterUiState.isLoading || completedAllDownloadsUiState.isLoading) {
                     true -> {
-                        Column {
-                            CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
-                            downloadedBalanceSheetByStockSize.data?.let { size ->
-                                Text("İndirilen hisse sayısı: $size")
+                        if (stocksFilterUiState.isLoading) {
+                            Column(Modifier.fillMaxWidth()) {
+                                CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
+                            }
+                        }
+                        if (completedAllDownloadsUiState.isLoading) {
+                            Column(Modifier.fillMaxWidth()) {
+                                CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
                             }
                         }
                     }
                     else -> {
-                        if (completedAllDownloadsUiState.data != null) {
-                            viewModel.fetchFilterBalanceSheetStocks()
-                        }
-                    }
-                }
-
-                when(stocksFilterUiState.isLoading) {
-                    true -> {
                         Column(Modifier.fillMaxWidth()) {
-                            Text("Veriler indiriliyor. Uzun sürebilir bekleyiniz.")
-                            CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
-                        }
-                    }
-                    else -> {
-                        Column {
                             if (stocksFilterUiState.error != null) {
                                 Text(
                                     text = "Hata: ${stocksFilterUiState.error}",
@@ -232,8 +225,8 @@ fun CompareStocksScreen(
                             }
                         }
 
-                        LazyColumn {
-                            items(stocksFilterUiState.data?.filteredList ?: emptyList()) { stock ->
+                        LazyColumn(Modifier.fillMaxWidth()) {
+                            itemsIndexed(stocksFilterUiState.data?.filteredList ?: emptyList()) { index, stock ->
                                 val isSelected = selectedItems.contains(stock)
                                 ListItem(
                                     headlineContent = {
@@ -275,7 +268,7 @@ fun CompareStocksScreen(
                                         }
                                     },
                                     modifier = Modifier
-                                        .fillMaxSize()
+                                        .fillMaxWidth()
                                         .clickable {
                                             if (isSelected) {
                                                 selectedItems.remove(stock)
@@ -285,18 +278,16 @@ fun CompareStocksScreen(
                                         },
                                 )
                                 HorizontalDivider()
-                            }
-                        }
-                        if (stocksFilterUiState.data?.defaultList?.isNotEmpty() == true && stocksFilterUiState.data?.filteredList?.isEmpty() == true) {
-                            Column {
-                                Button(onClick = {
-                                    if (NetworkUtil.isMobileDataConnected(context)) {
-                                        showAlert = true
-                                    } else {
-                                        viewModel.downloadAllBalanceSheets()
+                                if (index + 1 == stocksFilterUiState.data?.filteredList?.size) {
+                                    Button(onClick = {
+                                        if (NetworkUtil.isMobileDataConnected(context)) {
+                                            showAlert = true
+                                        } else {
+                                            viewModel.downloadAllBalanceSheets()
+                                        }
+                                    }, modifier = Modifier.padding(4.dp)) {
+                                        Text("Hisse Verilerini Güncelle")
                                     }
-                                }) {
-                                    Text("Hisse Verilerini Güncelle")
                                 }
                             }
                         }

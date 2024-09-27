@@ -114,13 +114,6 @@ fun CompareStocksDetailScreen(
                 .verticalScroll(rememberScrollState())
         ) {
 
-            DetailTableRatios(
-                modifier = Modifier,
-                stocks = stocks
-            )
-
-            Spacer(Modifier.height(8.dp))
-
             TableRatios(
                 modifier = Modifier.drawWithContent {
                     graphicsLayerTableRatios.record {
@@ -133,6 +126,13 @@ fun CompareStocksDetailScreen(
             ) { selected ->
                 selectedSort.value = selected
             }
+
+            Spacer(Modifier.height(16.dp))
+
+            DetailTableRatios(
+                modifier = Modifier,
+                stocks = stocks
+            )
 
             Spacer(Modifier.height(32.dp))
 

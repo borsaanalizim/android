@@ -4,30 +4,33 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Transaction
 import com.yavuzmobile.borsaanalizim.data.local.entity.BalanceSheetEntity
-import com.yavuzmobile.borsaanalizim.data.local.entity.BalanceSheetRatiosEntity
+import com.yavuzmobile.borsaanalizim.data.local.entity.BalanceSheetRatioEntity
+import com.yavuzmobile.borsaanalizim.data.local.entity.BalanceSheetStockEntity
+import com.yavuzmobile.borsaanalizim.data.local.entity.BalanceSheetWithRatios
 
 @Dao
 interface BalanceSheetDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertBalanceSheet(stock: BalanceSheetEntity)
+    suspend fun insertBalanceSheetStock(stock: BalanceSheetStockEntity)
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertBalanceSheetRatios(stock: BalanceSheetRatiosEntity)
+    suspend fun insertBalanceSheet(balanceSheet: BalanceSheetEntity)
 
-    @Query("SELECT * FROM balance_sheet_ratios_table WHERE period = :period ORDER BY stockCode")
-    suspend fun getBalanceSheetRatiosEntities(period: String): List<BalanceSheetRatiosEntity>
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertBalanceSheetRatios(ratio: BalanceSheetRatioEntity)
 
-    @Query("SELECT * FROM balance_sheet_table WHERE stockCode = :stockCode  ORDER BY period DESC")
-    suspend fun getAllBalanceSheetsOfStock(stockCode: String): List<BalanceSheetEntity>
+    @Transaction
+    @Query("SELECT * FROM balance_sheet_stock_table ORDER BY stockCode")
+    suspend fun getAllBalanceSheetWithRatios(): List<BalanceSheetWithRatios>
 
-    @Query("SELECT * FROM balance_sheet_ratios_table WHERE stockCode = :stockCode ORDER BY period DESC")
-    suspend fun getBalanceSheetRatiosListOfStock(stockCode: String): List<BalanceSheetRatiosEntity>
+    @Transaction
+    @Query("SELECT * FROM balance_sheet_stock_table WHERE stockCode = :stockCode")
+    suspend fun getBalanceSheetWithRatios(stockCode: String): BalanceSheetWithRatios?
 
-    @Query("SELECT * FROM balance_sheet_table WHERE stockCode = :stockCode ORDER BY period DESC LIMIT 12")
-    suspend fun getLast12BalanceSheetsOfStock(stockCode: String): List<BalanceSheetEntity>
+    @Query("SELECT * FROM balance_sheet_ratio_table WHERE period = :period ORDER BY stockCode")
+    suspend fun getBalanceSheetRatiosEntities(period: String): List<BalanceSheetRatioEntity>
 
-    @Query("SELECT * FROM balance_sheet_ratios_table WHERE stockCode = :stockCode ORDER BY period DESC LIMIT 12")
-    suspend fun getLast12BalanceSheetRatiosOfStock(stockCode: String): List<BalanceSheetRatiosEntity>
 }

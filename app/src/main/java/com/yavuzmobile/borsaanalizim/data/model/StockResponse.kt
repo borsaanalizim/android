@@ -7,6 +7,7 @@ import kotlinx.parcelize.Parcelize
 data class StockResponse(
     val code: String?,
     val name: String?,
+    val financialGroup: String?,
     val indexes: List<String>?,
     val sectors: List<String>?
 ) : Parcelable

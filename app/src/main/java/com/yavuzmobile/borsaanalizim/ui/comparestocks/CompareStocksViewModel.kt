@@ -1,27 +1,25 @@
 package com.yavuzmobile.borsaanalizim.ui.comparestocks
 
-import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.yavuzmobile.borsaanalizim.data.Result
 import com.yavuzmobile.borsaanalizim.data.local.entity.BalanceSheetDateStockWithDates
-import com.yavuzmobile.borsaanalizim.data.local.entity.BalanceSheetRatiosEntity
+import com.yavuzmobile.borsaanalizim.data.local.entity.BalanceSheetEntity
+import com.yavuzmobile.borsaanalizim.data.local.entity.BalanceSheetRatioEntity
 import com.yavuzmobile.borsaanalizim.data.local.entity.IndexEntity
 import com.yavuzmobile.borsaanalizim.data.local.entity.SectorEntity
 import com.yavuzmobile.borsaanalizim.data.model.IndexResponse
 import com.yavuzmobile.borsaanalizim.data.model.SectorResponse
 import com.yavuzmobile.borsaanalizim.data.model.StockResponse
-import com.yavuzmobile.borsaanalizim.data.repository.local.LocalRepository
-import com.yavuzmobile.borsaanalizim.data.repository.remote.BusinessInvestmentRepository
-import com.yavuzmobile.borsaanalizim.data.repository.remote.RemoteRepository
+import com.yavuzmobile.borsaanalizim.data.repository.LocalRepository
+import com.yavuzmobile.borsaanalizim.data.repository.RemoteRepository
 import com.yavuzmobile.borsaanalizim.model.StockFilter
 import com.yavuzmobile.borsaanalizim.model.StocksFilter
 import com.yavuzmobile.borsaanalizim.model.UiState
 import com.yavuzmobile.borsaanalizim.model.YearMonth
+import com.yavuzmobile.borsaanalizim.ui.BaseViewModel
 import com.yavuzmobile.borsaanalizim.util.Constant
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.FlowPreview
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -36,9 +34,8 @@ import javax.inject.Inject
 @HiltViewModel
 class CompareStocksViewModel @Inject constructor(
     private val localRepository: LocalRepository,
-    private val remoteRepository: RemoteRepository,
-    private val businessInvestmentRepository: BusinessInvestmentRepository
-): ViewModel() {
+    private val remoteRepository: RemoteRepository
+): BaseViewModel() {
 
     private val _stocksFilterUiState = MutableStateFlow(UiState<StocksFilter>())
     val stocksFilterUiState: StateFlow<UiState<StocksFilter>> = _stocksFilterUiState.asStateFlow()
@@ -67,9 +64,6 @@ class CompareStocksViewModel @Inject constructor(
     private val _selectedSectorStockFilterState = MutableStateFlow(Constant.ALL)
     val selectedSectorStockFilterState: StateFlow<String> = _selectedSectorStockFilterState.asStateFlow()
 
-    private val _downloadedBalanceSheetByStockSize = MutableStateFlow(UiState<Int>())
-    val downloadedBalanceSheetByStockSize: StateFlow<UiState<Int>> = _downloadedBalanceSheetByStockSize.asStateFlow()
-
     private val _completedAllDownloadsUiState = MutableStateFlow(UiState<Boolean>())
     val completedAllDownloadsUiState: StateFlow<UiState<Boolean>> = _completedAllDownloadsUiState.asStateFlow()
 
@@ -95,7 +89,7 @@ class CompareStocksViewModel @Inject constructor(
             if (resultBalanceSheetRatiosList is Result.Error) {
                 _stocksFilterUiState.update { state -> state.copy(isLoading = false, error = resultBalanceSheetRatiosList.error) }
             }
-            if (resultBalanceSheetRatiosList is Result.Success<List<BalanceSheetRatiosEntity>>) {
+            if (resultBalanceSheetRatiosList is Result.Success<List<BalanceSheetRatioEntity>>) {
                 // Filter selected period
                 val balanceSheetRatiosListData = resultBalanceSheetRatiosList.data.filter { balanceSheetRatiosData -> balanceSheetRatiosData.period == selectedPeriod }
                 if (balanceSheetRatiosListData.isEmpty()) {
@@ -137,6 +131,8 @@ class CompareStocksViewModel @Inject constructor(
                     return@launch
                 }
                 _stocksFilterUiState.update { state -> state.copy(isLoading = false, data = StocksFilter(stockFilterList, stockFilterList)) }
+                _selectedIndexStockFilterState.update { Constant.ALL }
+                _selectedSectorStockFilterState.update { Constant.ALL }
             }
         }
     }
@@ -247,7 +243,7 @@ class CompareStocksViewModel @Inject constructor(
             if (resultBalanceSheetRatiosList is Result.Error) {
                 _stocksFilterUiState.update { state -> state.copy(isLoading = false, error = resultBalanceSheetRatiosList.error) }
             }
-            if (resultBalanceSheetRatiosList is Result.Success<List<BalanceSheetRatiosEntity>>) {
+            if (resultBalanceSheetRatiosList is Result.Success<List<BalanceSheetRatioEntity>>) {
                 // Filter selected period
                 val balanceSheetRatiosListData = resultBalanceSheetRatiosList.data.filter { balanceSheetRatiosData -> balanceSheetRatiosData.period == selectedPeriod }
                 if (balanceSheetRatiosListData.isEmpty()) {
@@ -307,41 +303,25 @@ class CompareStocksViewModel @Inject constructor(
     }
 
     fun downloadAllBalanceSheets() {
+        val selectedPeriod = "${_selectedPeriodFilterState.value.year}/${_selectedPeriodFilterState.value.month}"
         viewModelScope.launch {
-            val resultStockResponseList = localRepository.getStocks().last()
-            if (resultStockResponseList is Result.Success<List<StockResponse>>) {
-                val data = resultStockResponseList.data
-                _completedAllDownloadsUiState.update { state -> state.copy(isLoading = true) }
-                data.map { stock ->
-                    async {
-                        fetchData(stock.code.orEmpty())
-                    }
-                }.awaitAll()
-                _completedAllDownloadsUiState.update { state -> state.copy(isLoading = false, data = true) }
-            }
-
+            handleResult(
+                action = { remoteRepository.fetchBalanceSheetsByPeriod(selectedPeriod) },
+                onLoading = { updateUiState(_completedAllDownloadsUiState, isLoading = true) },
+                onError = { error -> updateUiState(_completedAllDownloadsUiState, error = error.error) },
+                onSuccess = { insertBalanceSheets(it) }
+            )
         }
     }
 
-    private suspend fun fetchData(code: String) {
-        localRepository.getLastFourBalanceSheetDateOfStock(code).collect { resultBalanceSheetDate ->
-            when (resultBalanceSheetDate) {
-                is Result.Loading -> _downloadedBalanceSheetByStockSize.update { state -> state.copy(true) }
-                is Result.Error -> _downloadedBalanceSheetByStockSize.update { state -> state.copy(false, error = resultBalanceSheetDate.error) }
-                is Result.Success -> {
-                    businessInvestmentRepository.getFourPeriodFinancialStatementList(code, resultBalanceSheetDate.data).collect { resultRemote ->
-                        when (resultRemote) {
-                            is Result.Loading -> _downloadedBalanceSheetByStockSize.update { state -> state.copy(true) }
-                            is Result.Error -> _downloadedBalanceSheetByStockSize.update { state -> state.copy(false, error = resultRemote.error) }
-                            is Result.Success -> {
-                                val oldValue = (_downloadedBalanceSheetByStockSize.value.data ?: 0) + 1
-                                _downloadedBalanceSheetByStockSize.update { state -> state.copy(isLoading = false, data = oldValue) }
-                            }
-                        }
-                    }
-                }
-            }
-        }
+    private suspend fun insertBalanceSheets(entities: List<BalanceSheetEntity>) {
+        val selectedPeriod = "${_selectedPeriodFilterState.value.year}/${_selectedPeriodFilterState.value.month}"
+        handleResult(
+            action = { localRepository.insertBalanceSheetsByPeriod(selectedPeriod, entities) },
+            onLoading = { updateUiState(_completedAllDownloadsUiState, isLoading = true) },
+            onError = { error -> updateUiState(_completedAllDownloadsUiState, error = error.error) },
+            onSuccess = { updateUiState(_completedAllDownloadsUiState, data = true) }
+        )
     }
 
     fun setSelectedStocks(value: List<StockFilter>) {

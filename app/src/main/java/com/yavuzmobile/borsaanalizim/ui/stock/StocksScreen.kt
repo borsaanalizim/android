@@ -82,112 +82,114 @@ fun StocksScreen(
             .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 8.dp)
     ) {
 
-        Row(
-            Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            OutlinedTextField(
-                value = searchQuery,
-                onValueChange = { viewModel.onSearchQueryChange(it) },
-                label = { Text("Hisse Ara") },
-                modifier = Modifier
-                    .weight(1f)  // Kalan genişliği kaplar
-                    .fillMaxWidth()
-            )
-
-            Spacer(modifier = Modifier.size(4.dp))
-
-            IconButton(
-                onClick = {
-                    if (sectorsUiState.data == null) {
-                        viewModel.fetchIndexes()
-                    } else {
-                        viewModel.setShowFilterBottomSheetState(true)
-                    }
-                },
-                modifier = Modifier
-                    .wrapContentWidth()
-                    .align(Alignment.CenterVertically)
+        Column(Modifier.fillMaxSize()) {
+            Row(
+                Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(
-                    imageVector = ImageVector.vectorResource(id = R.drawable.ic_filter),
-                    contentDescription = "Filter"
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { viewModel.onSearchQueryChange(it) },
+                    label = { Text("Hisse Ara") },
+                    modifier = Modifier
+                        .weight(1f)  // Kalan genişliği kaplar
+                        .fillMaxWidth()
                 )
-            }
-        }
 
-        Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.size(4.dp))
 
-        SwipeRefresh(
-            state = SwipeRefreshState(isRefreshing),
-            onRefresh = { viewModel.refreshStocks() }
-        ) {
-            when (sectorsUiState.isLoading) {
-                true -> Column(Modifier.fillMaxSize()) { CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally)) }
-                else -> {
-                    if (stocksUiState.error != null) {
-                        Text(
-                            text = "Hata: ${stocksUiState.error}",
-                            color = MaterialTheme.colorScheme.error
-                        )
-                    }
+                IconButton(
+                    onClick = {
+                        if (sectorsUiState.data == null) {
+                            viewModel.fetchIndexes()
+                        } else {
+                            viewModel.setShowFilterBottomSheetState(true)
+                        }
+                    },
+                    modifier = Modifier
+                        .wrapContentWidth()
+                        .align(Alignment.CenterVertically)
+                ) {
+                    Icon(
+                        imageVector = ImageVector.vectorResource(id = R.drawable.ic_filter),
+                        contentDescription = "Filter"
+                    )
                 }
             }
 
-            when (stocksUiState.isLoading) {
-                true -> Column(Modifier.fillMaxSize()) { CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally)) }
-                false -> {
-                    if (stocksUiState.error != null) {
-                        Text(
-                            text = "Hata: ${stocksUiState.error}",
-                            color = MaterialTheme.colorScheme.error
-                        )
-                        return@SwipeRefresh
-                    }
-                    LazyColumn {
-                        items(stocksUiState.data?.filteredStocks ?: emptyList()) { stock ->
-                            ListItem(
-                                headlineContent = {
-                                    Row {
-                                        Text(
-                                            text = stock.code.orEmpty(),
-                                            style = MaterialTheme.typography.bodyLarge,
-                                            modifier = Modifier
-                                                .fillMaxHeight()
-                                                .align(Alignment.CenterVertically)
-                                                .width(60.dp),
-                                            textAlign = TextAlign.Left
-                                        )
-                                        Text("-", Modifier.padding(end = 4.dp))
-                                        Text(
-                                            text = stock.name.orEmpty(),
-                                            style = MaterialTheme.typography.bodyLarge,
-                                            overflow = TextOverflow.Ellipsis,
-                                            maxLines = 1,
-                                            modifier = Modifier
-                                                .fillMaxHeight()
-                                                .align(Alignment.CenterVertically),
-                                        )
-                                    }
-                                    HorizontalDivider()
-                                },
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .clickable {
-                                        navController.navigate(NavigationItem.BalanceSheetScreen.createRoute(stock.code.orEmpty()))
-                                    },
+            Spacer(modifier = Modifier.height(16.dp))
+
+            SwipeRefresh(
+                state = SwipeRefreshState(isRefreshing),
+                onRefresh = { viewModel.refreshStocks() }
+            ) {
+                when (sectorsUiState.isLoading) {
+                    true -> Column(Modifier.fillMaxSize()) { CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally)) }
+                    else -> {
+                        if (stocksUiState.error != null) {
+                            Text(
+                                text = "Hata: ${stocksUiState.error}",
+                                color = MaterialTheme.colorScheme.error
                             )
-                            HorizontalDivider()
+                        }
+                    }
+                }
+
+                when (stocksUiState.isLoading) {
+                    true -> Column(Modifier.fillMaxSize()) { CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally)) }
+                    false -> {
+                        if (stocksUiState.error != null) {
+                            Text(
+                                text = "Hata: ${stocksUiState.error}",
+                                color = MaterialTheme.colorScheme.error
+                            )
+                            return@SwipeRefresh
+                        }
+                        LazyColumn {
+                            items(stocksUiState.data?.filteredStocks ?: emptyList()) { stock ->
+                                ListItem(
+                                    headlineContent = {
+                                        Row {
+                                            Text(
+                                                text = stock.code.orEmpty(),
+                                                style = MaterialTheme.typography.bodyLarge,
+                                                modifier = Modifier
+                                                    .fillMaxHeight()
+                                                    .align(Alignment.CenterVertically)
+                                                    .width(60.dp),
+                                                textAlign = TextAlign.Left
+                                            )
+                                            Text("-", Modifier.padding(end = 4.dp))
+                                            Text(
+                                                text = stock.name.orEmpty(),
+                                                style = MaterialTheme.typography.bodyLarge,
+                                                overflow = TextOverflow.Ellipsis,
+                                                maxLines = 1,
+                                                modifier = Modifier
+                                                    .fillMaxHeight()
+                                                    .align(Alignment.CenterVertically),
+                                            )
+                                        }
+                                        HorizontalDivider()
+                                    },
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .clickable {
+                                            navController.navigate(NavigationItem.BalanceSheetScreen.createRoute(stock.code.orEmpty()))
+                                        },
+                                )
+                                HorizontalDivider()
+                            }
                         }
                     }
                 }
             }
-        }
 
 
-        if (showFilterBottomSheet && indexesUiState.data != null && sectorsUiState.data != null) {
-            StockFilterBottomSheetScreen(viewModel = viewModel, indexes = indexesUiState.data!!, sectors = sectorsUiState.data!!, sheetState = sheetState) {
-                viewModel.setShowFilterBottomSheetState(false)
+            if (showFilterBottomSheet && indexesUiState.data != null && sectorsUiState.data != null) {
+                StockFilterBottomSheetScreen(viewModel = viewModel, indexes = indexesUiState.data!!, sectors = sectorsUiState.data!!, sheetState = sheetState) {
+                    viewModel.setShowFilterBottomSheetState(false)
+                }
             }
         }
     }

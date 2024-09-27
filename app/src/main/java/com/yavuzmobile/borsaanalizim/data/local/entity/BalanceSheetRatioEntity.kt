@@ -1,13 +1,10 @@
 package com.yavuzmobile.borsaanalizim.data.local.entity
 
-import android.os.Parcelable
 import androidx.room.Entity
 import androidx.room.PrimaryKey
-import kotlinx.parcelize.Parcelize
 
-@Parcelize
-@Entity(tableName = "balance_sheet_ratios_table")
-data class BalanceSheetRatiosEntity(
+@Entity(tableName = "balance_sheet_ratio_table")
+data class BalanceSheetRatioEntity(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
     val stockCode: String,
@@ -19,4 +16,4 @@ data class BalanceSheetRatiosEntity(
     val marketValueAndNetOperatingProfit: String,
     val companyValueAndNetSales: String,
     val netOperatingProfitAndMarketValue: String
-) : Parcelable
+)

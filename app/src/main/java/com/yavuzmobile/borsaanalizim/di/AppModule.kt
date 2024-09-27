@@ -4,16 +4,14 @@ import android.content.Context
 import androidx.room.Room
 import com.google.gson.Gson
 import com.yavuzmobile.borsaanalizim.data.api.Api
-import com.yavuzmobile.borsaanalizim.data.api.BusinessInvestmentApi
 import com.yavuzmobile.borsaanalizim.data.local.AppDatabase
 import com.yavuzmobile.borsaanalizim.data.local.dao.BalanceSheetDao
 import com.yavuzmobile.borsaanalizim.data.local.dao.BalanceSheetDateDao
 import com.yavuzmobile.borsaanalizim.data.local.dao.IndexDao
 import com.yavuzmobile.borsaanalizim.data.local.dao.SectorDao
 import com.yavuzmobile.borsaanalizim.data.local.dao.StockDao
-import com.yavuzmobile.borsaanalizim.data.repository.local.LocalRepository
-import com.yavuzmobile.borsaanalizim.data.repository.remote.BusinessInvestmentRepository
-import com.yavuzmobile.borsaanalizim.data.repository.remote.RemoteRepository
+import com.yavuzmobile.borsaanalizim.data.repository.LocalRepository
+import com.yavuzmobile.borsaanalizim.data.repository.RemoteRepository
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -24,7 +22,6 @@ import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import java.util.concurrent.TimeUnit
-import javax.inject.Named
 import javax.inject.Singleton
 
 @Module
@@ -49,19 +46,7 @@ object AppModule {
 
     @Provides
     @Singleton
-    @Named("Default")
     fun provideRetrofit(okHttpClient: OkHttpClient): Retrofit {
-        return Retrofit.Builder()
-            .baseUrl("https://www.isyatirim.com.tr/")
-            .client(okHttpClient)
-            .addConverterFactory(GsonConverterFactory.create())
-            .build()
-    }
-
-    @Provides
-    @Singleton
-    @Named("BalanceSheetRatiosEntity")
-    fun provideFinTablesRetrofit(okHttpClient: OkHttpClient): Retrofit {
         return Retrofit.Builder()
             .baseUrl("https://borsaanalizim.com/")
             .client(okHttpClient)
@@ -71,23 +56,11 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideApi(@Named("Default") retrofit: Retrofit): BusinessInvestmentApi =
-        retrofit.create(BusinessInvestmentApi::class.java)
+    fun provideApi(retrofit: Retrofit): Api = retrofit.create(Api::class.java)
 
     @Provides
     @Singleton
-    fun provideFinTablesApi(@Named("BalanceSheetRatiosEntity") retrofit: Retrofit): Api = retrofit.create(
-        Api::class.java
-    )
-
-    @Provides
-    @Singleton
-    fun provideRemoteRepository(api: BusinessInvestmentApi, balanceSheetDao: BalanceSheetDao): BusinessInvestmentRepository =
-        BusinessInvestmentRepository(api, balanceSheetDao)
-
-    @Provides
-    @Singleton
-    fun provideStockMarketAnalysisRepository(api: Api): RemoteRepository = RemoteRepository(api)
+    fun provideRemoteRepository(api: Api): RemoteRepository = RemoteRepository(api)
 
     @Provides
     @Singleton
