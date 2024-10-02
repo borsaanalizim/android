@@ -374,12 +374,12 @@ class LocalRepository @Inject constructor(
                 val sortedBalanceSheetEntities = it.balanceSheets.sortedByDescending { entity ->
                     val (year, quarter) = entity.period.split("/").map { it.toInt() }
                     year * 10 + quarter
-                }
+                }.take(12)
                 val ratios = ArrayList<BalanceSheetRatioEntity>()
                 val sortedBalanceSheetRatioEntities = it.ratios.sortedByDescending { entity ->
                     val (year, quarter) = entity.period.split("/").map { it.toInt() }
                     year * 10 + quarter
-                }
+                }.take(12)
                 val lastPeriodBalanceSheetEntity = sortedBalanceSheetEntities.first()
                 balanceSheetDateDao.getStockLastPrice(lastPeriodBalanceSheetEntity.stockCode)?.let { stockLastPrice ->
                     val lastPrice = stockLastPrice.lastPrice
@@ -477,12 +477,12 @@ class LocalRepository @Inject constructor(
                 val sortedBalanceSheetEntities = it.balanceSheets.sortedByDescending { entity ->
                     val (year, quarter) = entity.period.split("/").map { it.toInt() }
                     year * 10 + quarter
-                }
+                }.take(12)
                 val ratios = ArrayList<BalanceSheetRatioEntity>()
                 val sortedBalanceSheetRatioEntities = it.ratios.sortedByDescending { entity ->
                     val (year, quarter) = entity.period.split("/").map { it.toInt() }
                     year * 10 + quarter
-                }
+                }.take(12)
                 val lastPeriodBalanceSheetEntity = sortedBalanceSheetEntities.first()
                 balanceSheetDateDao.getStockLastPrice(lastPeriodBalanceSheetEntity.stockCode)?.let { stockLastPrice ->
                     val lastPrice = stockLastPrice.lastPrice

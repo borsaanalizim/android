@@ -14,7 +14,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -90,6 +94,16 @@ fun BalanceSheetScreen(
             Modifier
                 .fillMaxWidth()
                 .verticalScroll(rememberScrollState())) {
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End
+            ) {
+                IconButton(onClick = { coroutineScope.launch { viewModel.fetchBalanceSheetsByStock(code) } },) {
+                    Icon(imageVector = Icons.Default.Refresh, contentDescription = "Yenile")
+                }
+            }
+
             when(balanceSheetWithRatiosUiState.isLoading) {
                 true -> CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
                 false -> {

@@ -43,7 +43,7 @@ class BalanceSheetViewModel @Inject constructor(private val localRepository: Loc
         }
     }
 
-    private suspend fun fetchBalanceSheetsByStock(stockCode: String) {
+    suspend fun fetchBalanceSheetsByStock(stockCode: String) {
         handleResult(
             action = { remoteRepository.fetchBalanceSheetsByStock(stockCode) },
             onLoading = { updateUiState(_balanceSheetWithRatiosState, isLoading = true) },
