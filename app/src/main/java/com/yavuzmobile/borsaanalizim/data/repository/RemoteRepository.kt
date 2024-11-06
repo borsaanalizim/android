@@ -7,14 +7,13 @@ import com.yavuzmobile.borsaanalizim.data.local.entity.BalanceSheetDateStockWith
 import com.yavuzmobile.borsaanalizim.data.local.entity.BalanceSheetEntity
 import com.yavuzmobile.borsaanalizim.data.local.entity.DateEntity
 import com.yavuzmobile.borsaanalizim.data.local.entity.IndexEntity
-import com.yavuzmobile.borsaanalizim.data.local.entity.MainCategorySectorEntity
 import com.yavuzmobile.borsaanalizim.data.local.entity.SectorEntity
 import com.yavuzmobile.borsaanalizim.data.local.entity.StockAndIndexAndSectorEntity
 import com.yavuzmobile.borsaanalizim.data.local.entity.StockEntity
 import com.yavuzmobile.borsaanalizim.data.local.entity.StockInIndexEntity
-import com.yavuzmobile.borsaanalizim.data.local.entity.StockInSectorEntity
-import com.yavuzmobile.borsaanalizim.data.local.entity.SubCategorySectorEntity
+import com.yavuzmobile.borsaanalizim.ext.isComparePeriod
 import com.yavuzmobile.borsaanalizim.ext.toDoubleOrDefault
+import com.yavuzmobile.borsaanalizim.ext.totalNumber
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import javax.inject.Inject
@@ -55,6 +54,38 @@ class RemoteRepository @Inject constructor(private val api: Api) {
         }
     }
 
+    fun getBalanceSheetDatesByStock(stockCode: String, mkkMemberOid: String): Flow<Result<BalanceSheetDateStockWithDates>> = flow {
+        emit(Result.Loading())
+        try {
+            val response = api.fetchBalanceSheetDatesByStock(stockCode, mkkMemberOid)
+            if (response.isSuccessful) {
+                response.body()?.data?.let { data ->
+                    if (data.stockCode != null && data.lastPrice != null && data.dates != null) {
+                        val balanceSheetDateStockWithDates = BalanceSheetDateStockWithDates(
+                            BalanceSheetDateStockEntity(data.stockCode, data.lastPrice),
+                            data.dates.map { mappedDate ->
+                                DateEntity(
+                                    period = mappedDate.period.orEmpty(),
+                                    publishedAt = mappedDate.publishedAt.orEmpty(),
+                                    price = mappedDate.price.toString().toDoubleOrDefault(),
+                                    stockCode = data.stockCode
+                                )
+                            })
+                        emit(Result.Success(balanceSheetDateStockWithDates))
+                    } else {
+                        emit(Result.Error(500, "response parameter is null"))
+                    }
+                } ?: kotlin.run {
+                    emit(Result.Error(response.code(), response.errorBody()?.string().toString()))
+                }
+            } else {
+                emit(Result.Error(response.code(), response.errorBody()?.string().toString()))
+            }
+        } catch (e: Exception) {
+            emit(Result.Error(500, e.message.toString()))
+        }
+    }
+
     fun getStocks(): Flow<Result<List<StockAndIndexAndSectorEntity>>> = flow {
         emit(Result.Loading())
         try {
@@ -62,16 +93,9 @@ class RemoteRepository @Inject constructor(private val api: Api) {
             if (response.isSuccessful) {
                 response.body()?.data?.let { data ->
                     val entities = data.mapNotNull {
-                        if (!it.code.isNullOrEmpty() && !it.name.isNullOrEmpty() && !it.financialGroup.isNullOrEmpty() && it.indexes != null && it.sectors != null) {
+                        if (!it.code.isNullOrEmpty() && !it.name.isNullOrEmpty() && !it.financialGroup.isNullOrEmpty() && it.mkkMemberOid != null && !it.sector.isNullOrEmpty() && it.indexes != null) {
                             StockAndIndexAndSectorEntity(
-                                stock = StockEntity(it.code, it.name, it.financialGroup),
-                                sectors = it.sectors.map { sectorMap ->
-                                    StockInSectorEntity(
-                                        category = sectorMap,
-                                        stockCode = it.code,
-                                        stockName = it.name
-                                    )
-                                },
+                                stock = StockEntity(it.code, it.name, it.financialGroup, it.mkkMemberOid, it.sector),
                                 indexes = it.indexes.map { indexMap ->
                                     StockInIndexEntity(
                                         category = indexMap,
@@ -116,25 +140,14 @@ class RemoteRepository @Inject constructor(private val api: Api) {
         }
     }
 
-    fun getSectors(): Flow<Result<List<SectorEntity>>> = flow {
+    fun getSectors(): Flow<Result<SectorEntity>> = flow {
         emit(Result.Loading())
         try {
             val response = api.fetchSectors()
             if (response.isSuccessful) {
                 response.body()?.data?.let { data ->
-                    val entities = data.mapNotNull {
-                        if (!it.mainCategory.isNullOrEmpty() && !it.subCategories.isNullOrEmpty()) {
-                            SectorEntity(
-                                MainCategorySectorEntity(it.mainCategory),
-                                it.subCategories.map { subCategoryMap ->
-                                    SubCategorySectorEntity(
-                                        mainCategory = it.mainCategory,
-                                        subCategory = subCategoryMap
-                                    )
-                                })
-                        } else null
-                    }
-                    emit(Result.Success(entities))
+                    val sectorEntity = SectorEntity(sectors = data.sectors.orEmpty())
+                    emit(Result.Success(sectorEntity))
                 } ?: kotlin.run {
                     emit(Result.Error(response.code(), response.errorBody()?.string().toString()))
                 }
@@ -173,6 +186,7 @@ class RemoteRepository @Inject constructor(private val api: Api) {
                                 previousYearsProfitAndLoss = balanceSheetItem.previousYearsProfitAndLoss.orEmpty(),
                                 netProfitAndLossPeriod = balanceSheetItem.netProfitAndLossPeriod.orEmpty(),
                                 operatingProfitAndLoss = balanceSheetItem.operatingProfitAndLoss.orEmpty(),
+                                periodProfitAndLoss = balanceSheetItem.periodProfitAndLoss.orEmpty(),
                                 depreciationExpenses = balanceSheetItem.depreciationExpenses.orEmpty(),
                                 otherExpenses = balanceSheetItem.otherExpenses.orEmpty(),
                                 periodTaxIncomeAndExpense = balanceSheetItem.periodTaxIncomeAndExpense.orEmpty(),
@@ -223,6 +237,7 @@ class RemoteRepository @Inject constructor(private val api: Api) {
                                 previousYearsProfitAndLoss = balanceSheetItem.previousYearsProfitAndLoss.orEmpty(),
                                 netProfitAndLossPeriod = balanceSheetItem.netProfitAndLossPeriod.orEmpty(),
                                 operatingProfitAndLoss = balanceSheetItem.operatingProfitAndLoss.orEmpty(),
+                                periodProfitAndLoss = balanceSheetItem.periodProfitAndLoss.orEmpty(),
                                 depreciationExpenses = balanceSheetItem.depreciationExpenses.orEmpty(),
                                 otherExpenses = balanceSheetItem.otherExpenses.orEmpty(),
                                 periodTaxIncomeAndExpense = balanceSheetItem.periodTaxIncomeAndExpense.orEmpty(),
@@ -236,7 +251,8 @@ class RemoteRepository @Inject constructor(private val api: Api) {
                             )
                         )
                     }
-                    emit(Result.Success(balanceSheetList))
+                    val sortedList = balanceSheetList.sortedByDescending { it.period.totalNumber() }
+                    emit(Result.Success(sortedList))
                 } ?: kotlin.run {
                     emit(Result.Error(response.code(), response.errorBody()?.string().toString()))
                 }
@@ -275,6 +291,7 @@ class RemoteRepository @Inject constructor(private val api: Api) {
                                 previousYearsProfitAndLoss = balanceSheetItem.previousYearsProfitAndLoss.orEmpty(),
                                 netProfitAndLossPeriod = balanceSheetItem.netProfitAndLossPeriod.orEmpty(),
                                 operatingProfitAndLoss = balanceSheetItem.operatingProfitAndLoss.orEmpty(),
+                                periodProfitAndLoss = balanceSheetItem.periodProfitAndLoss.orEmpty(),
                                 depreciationExpenses = balanceSheetItem.depreciationExpenses.orEmpty(),
                                 otherExpenses = balanceSheetItem.otherExpenses.orEmpty(),
                                 periodTaxIncomeAndExpense = balanceSheetItem.periodTaxIncomeAndExpense.orEmpty(),

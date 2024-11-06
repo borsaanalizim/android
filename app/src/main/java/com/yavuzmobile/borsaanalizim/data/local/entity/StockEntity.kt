@@ -8,5 +8,7 @@ data class StockEntity(
     @PrimaryKey
     val stockCode: String,
     val stockName: String,
-    val financialGroup: String
+    val financialGroup: String,
+    val mkkMemberOid: String,
+    val sector: String
 )

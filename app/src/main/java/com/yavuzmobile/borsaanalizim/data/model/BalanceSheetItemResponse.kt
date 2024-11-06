@@ -17,6 +17,7 @@ data class BalanceSheetItemResponse(
     val previousYearsProfitAndLoss: String?,
     val netProfitAndLossPeriod: String?,
     val operatingProfitAndLoss: String?,
+    val periodProfitAndLoss: String?,
     val depreciationExpenses: String?,
     val otherExpenses: String?,
     val periodTaxIncomeAndExpense: String?,

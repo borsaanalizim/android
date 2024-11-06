@@ -16,6 +16,9 @@ interface Api {
     @GET("/api/balanceSheetDates")
     suspend fun fetchBalanceSheetDates(): Response<BaseResponse<List<BalanceSheetDateResponse>>>
 
+    @GET("/api/balanceSheetDates")
+    suspend fun fetchBalanceSheetDatesByStock(@Query("stockCode") stockCode: String, @Query("mkkMemberOid") mkkMemberOid: String): Response<BaseResponse<BalanceSheetDateResponse>>
+
     @GET("/api/stocks")
     suspend fun fetchStocks(): Response<BaseResponse<List<StockResponse>>>
 
@@ -23,7 +26,7 @@ interface Api {
     suspend fun fetchIndexes(): Response<BaseResponse<List<IndexResponse>>>
 
     @GET("/api/sectors")
-    suspend fun fetchSectors(): Response<BaseResponse<List<SectorResponse>>>
+    suspend fun fetchSectors(): Response<BaseResponse<SectorResponse>>
 
     @GET("/api/stocksInIndexes")
     suspend fun fetchStocksInIndexes(): Response<BaseResponse<List<StockInIndexesResponse>>>

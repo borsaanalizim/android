@@ -10,6 +10,7 @@ data class BalanceSheetRatioEntity(
     val stockCode: String,
     val period: String,
     val price: String,
+    val ebitda: String,
     val marketBookAndBookValue: String,
     val priceAndEarning: String,
     val companyValueAndEbitda: String,

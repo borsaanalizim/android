@@ -19,6 +19,7 @@ import androidx.room.PrimaryKey
  * @param previousYearsProfitAndLoss Geçmiş Yıllar Kar/Zararları - 2OCE
  * @param netProfitAndLossPeriod Dönem Net Kar/Zarar - 2OCF
  * @param operatingProfitAndLoss FAALİYET KARI (ZARARI) - 3DF
+ * @param periodProfitAndLoss DÖNEM KARI (ZARARI) - 3L
  * @param depreciationExpenses Amortisman Giderleri
  * @param otherExpenses Faiz, Ücret, Prim, Komisyon ve Diğer Giderler (-)
  * @param periodTaxIncomeAndExpense Dönem Vergi Geliri (Gideri)
@@ -52,6 +53,7 @@ data class BalanceSheetEntity(
     val previousYearsProfitAndLoss: String,
     val netProfitAndLossPeriod: String,
     val operatingProfitAndLoss: String,
+    val periodProfitAndLoss: String,
     val depreciationExpenses: String,
     val otherExpenses: String,
     val periodTaxIncomeAndExpense: String,

@@ -35,8 +35,8 @@ class StocksViewModel @Inject constructor(
     private val _indexesUiState = MutableStateFlow(UiState<List<IndexResponse>>())
     val indexesUiState: StateFlow<UiState<List<IndexResponse>>> = _indexesUiState.asStateFlow()
 
-    private val _sectorsUiState = MutableStateFlow(UiState<List<SectorResponse>>())
-    val sectorsUiState: StateFlow<UiState<List<SectorResponse>>> = _sectorsUiState.asStateFlow()
+    private val _sectorsUiState = MutableStateFlow(UiState<SectorResponse>())
+    val sectorsUiState: StateFlow<UiState<SectorResponse>> = _sectorsUiState.asStateFlow()
 
     private val _searchQuery = MutableStateFlow("")
     val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
@@ -149,9 +149,9 @@ class StocksViewModel @Inject constructor(
         }
     }
 
-    private suspend fun insertSectors(entities: List<SectorEntity>) {
+    private suspend fun insertSectors(entity: SectorEntity) {
         handleResult(
-            action = { localRepository.insertSectors(entities) },
+            action = { localRepository.insertSectors(entity) },
             onSuccess = {
                 getSectors()
             },
@@ -186,7 +186,7 @@ class StocksViewModel @Inject constructor(
             return
         }
         val filteredStocks = _stocksUiState.value.data?.stocks?.filter {
-            it.indexes?.find { index -> index == selectedIndexName } != null || it.sectors?.find { sector -> sector == selectedSectorName } != null
+            it.indexes?.find { index -> index == selectedIndexName } != null || it.sector == selectedSectorName
         } ?: run {
             emptyList()
         }

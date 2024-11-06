@@ -37,7 +37,7 @@ class SplashViewModel @Inject constructor(
 
     private suspend fun insertBalanceSheetDates(response: List<BalanceSheetDateStockWithDates>) {
         handleResult(
-            action = { localRepository.insertBalanceSheetDate(response) },
+            action = { localRepository.insertBalanceSheetDates(response) },
             onSuccess = { getStocks() },
             onLoading = { updateUiState(_completedUiState, isLoading = true) },
             onError = { error -> updateUiState(_completedUiState, error = error.error) }

@@ -129,4 +129,14 @@ object DateUtil {
             return emptyList()
         }
     }
+
+    fun getFirstPeriod(): String {
+        try {
+            val today = LocalDate.now()
+            val year = today.year - 2
+            return "$year/3"
+        } catch (e: Exception) {
+            return ""
+        }
+    }
 }

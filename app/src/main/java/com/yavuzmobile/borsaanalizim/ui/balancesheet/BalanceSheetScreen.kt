@@ -31,6 +31,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.GraphicsContext
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.layer.drawLayer
 import androidx.compose.ui.graphics.rememberGraphicsLayer
@@ -60,6 +61,7 @@ import com.yavuzmobile.borsaanalizim.util.RatiosConstant.LABEL_NET_OPERATING_PRO
 import com.yavuzmobile.borsaanalizim.util.RatiosConstant.LABEL_PRICE_AND_EARNING
 import com.yavuzmobile.borsaanalizim.util.ShareUtil
 import kotlinx.coroutines.launch
+import java.util.Locale
 
 @Composable
 fun BalanceSheetScreen(
@@ -204,13 +206,30 @@ fun BalanceSheetScreen(
                                 longTermLiabilitiesGraphBarDataList.add(index = index, element = value.toFloat()/longTermLiabilitiesList.max().toFloat())
                             }
 
+                            Text("PD/DD: " + String.format(Locale.getDefault(), "%.2f", balanceSheetWithRatios.ratios.first().marketBookAndBookValue.cleanedNumberFormat().toDoubleOrDefault()), Modifier.fillMaxWidth(), textAlign = TextAlign.Start)
+                            Text("F/K: " + String.format(Locale.getDefault(), "%.2f", balanceSheetWithRatios.ratios.first().priceAndEarning.cleanedNumberFormat().toDoubleOrDefault()), Modifier.fillMaxWidth(), textAlign = TextAlign.Start)
+                            val lastPeriod = balanceSheetWithRatios.ratios[1].period
+                            val lastEbitda = balanceSheetWithRatios.ratios[1].ebitda
+                            if (balanceSheetWithRatios.ratios.size > 2) {
+                                val previousEbitda = balanceSheetWithRatios.ratios[2].ebitda
+                                val previousPeriod = balanceSheetWithRatios.ratios[2].period
+                                val ebitdaRatio = (lastEbitda.cleanedNumberFormat().toDoubleOrDefault() - previousEbitda.cleanedNumberFormat().toDoubleOrDefault()) / previousEbitda.cleanedNumberFormat().toDoubleOrDefault()
+                                Text("${lastPeriod}: " + lastEbitda + " (%${String.format(Locale.getDefault(), "%.2f", ebitdaRatio)})", Modifier.fillMaxWidth(), textAlign = TextAlign.Start)
+                                Text("${previousPeriod}: " + previousEbitda, Modifier.fillMaxWidth(), textAlign = TextAlign.Start)
+                            }
+                            if (balanceSheetWithRatios.ratios.size > 5) {
+                                val previousYearEbitda = balanceSheetWithRatios.ratios[5].ebitda
+                                val previousYearPeriod = balanceSheetWithRatios.ratios[5].period
+                                Text("${previousYearPeriod}: " + previousYearEbitda, Modifier.fillMaxWidth(), textAlign = TextAlign.Start)
+                            }
+
                             BarGraphWizard("DÖNEN VARLIKLAR", currentAssetGraphBarDataList, periodList, currentAssetList)
                             BarGraphWizard("DURAN VARLIKLAR", longTermAssetGraphBarDataList, periodList, longTermAssetList)
                             BarGraphWizard("ÖZKAYNAKLAR", equitiesGraphBarDataList, periodList, equitiesList)
                             BarGraphWizard("SATIŞ GELİRLERİ", salesIncomeGraphBarDataList, periodList, salesIncomeList)
-                            BarGraphWizard("BRÜT KAR (ZARAR)", grossProfitAndLossGraphBarDataList, periodList, grossProfitAndLossList)
-                            BarGraphWizard("NET FAALİYET KAR/ZARARI", netOperatingProfitAndLossGraphBarDataList, periodList, netOperatingProfitAndLossList)
-                            BarGraphWizard("DÖNEM NET KAR/ZARAR", netProfitAndLossPeriodGraphBarDataList, periodList, netProfitAndLossPeriodList)
+                            BarGraphWizard("BRÜT KAR-ZARAR", grossProfitAndLossGraphBarDataList, periodList, grossProfitAndLossList)
+                            BarGraphWizard("NET FAALİYET KAR-ZARAR", netOperatingProfitAndLossGraphBarDataList, periodList, netOperatingProfitAndLossList)
+                            BarGraphWizard("DÖNEM NET KAR-ZARAR", netProfitAndLossPeriodGraphBarDataList, periodList, netProfitAndLossPeriodList)
                             BarGraphWizard("NAKİT VE NAKİT BENZERLERİ", cashAndCashEquivalentsGraphBarDataList, periodList, cashAndCashEquivalentsList)
                             BarGraphWizard("FİNANSAL YATIRIMLAR", financialInvestmentsGraphBarDataList, periodList, financialInvestmentsList)
                             BarGraphWizard("K.V FİNANSAL BORÇLAR", financialDebtsShortGraphBarDataList, periodList, financialDebtsShortList)
@@ -241,7 +260,8 @@ fun BalanceSheetScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(start = 32.dp, end = 16.dp)
-                                .horizontalScroll(rememberScrollState()).drawWithContent {
+                                .horizontalScroll(rememberScrollState())
+                                .drawWithContent {
                                     graphicsLayerTableRatios.record {
                                         this@drawWithContent.drawContent()
                                     }
@@ -273,6 +293,7 @@ fun BalanceSheetScreen(
                                     Text(balanceSheet.price, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
                                 }
                             }
+                            /*
                             Column(
                                 Modifier
                                     .width(75.dp)
@@ -322,6 +343,7 @@ fun BalanceSheetScreen(
                                     )
                                 }
                             }
+                            */
                             Column(
                                 Modifier
                                     .width(105.dp)
@@ -426,9 +448,10 @@ fun BalanceSheetScreen(
 
                         Spacer(Modifier.height(32.dp))
 
-                        Column(Modifier
-                            .fillMaxWidth()
-                            .padding(start = 32.dp, end = 16.dp)
+                        Column(
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(start = 32.dp, end = 16.dp)
                         ) {
                             Text("$LABEL_MARKET_BOOK_AND_BOOK_VALUE: $EXPLANATION_MARKET_BOOK_AND_BOOK_VALUE")
                             Spacer(Modifier.height(16.dp))

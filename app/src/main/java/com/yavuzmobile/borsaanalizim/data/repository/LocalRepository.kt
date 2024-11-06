@@ -16,13 +16,14 @@ import com.yavuzmobile.borsaanalizim.data.local.entity.DateEntity
 import com.yavuzmobile.borsaanalizim.data.local.entity.IndexEntity
 import com.yavuzmobile.borsaanalizim.data.local.entity.SectorEntity
 import com.yavuzmobile.borsaanalizim.data.local.entity.StockAndIndexAndSectorEntity
+import com.yavuzmobile.borsaanalizim.data.local.entity.StockEntity
 import com.yavuzmobile.borsaanalizim.data.local.entity.StockInIndexEntity
-import com.yavuzmobile.borsaanalizim.data.local.entity.StockInSectorEntity
-import com.yavuzmobile.borsaanalizim.data.local.entity.SubCategorySectorEntity
 import com.yavuzmobile.borsaanalizim.data.model.IndexResponse
 import com.yavuzmobile.borsaanalizim.data.model.SectorResponse
 import com.yavuzmobile.borsaanalizim.data.model.StockResponse
+import com.yavuzmobile.borsaanalizim.ext.isComparePeriod
 import com.yavuzmobile.borsaanalizim.ext.toDoubleOrDefault
+import com.yavuzmobile.borsaanalizim.ext.totalNumber
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import java.util.Locale
@@ -38,7 +39,7 @@ class LocalRepository @Inject constructor(
     private val indexDao: IndexDao
 ) {
 
-    suspend fun insertBalanceSheetDate(entities: List<BalanceSheetDateStockWithDates>): Flow<Result<Boolean>> = flow {
+    suspend fun insertBalanceSheetDates(entities: List<BalanceSheetDateStockWithDates>): Flow<Result<Boolean>> = flow {
         emit(Result.Loading())
         try {
             entities.forEach { entity ->
@@ -55,6 +56,27 @@ class LocalRepository @Inject constructor(
                 balanceSheetDateDao.insertStock(entity.stock)
                 balanceSheetDateDao.insertDates(newPeriods)
             }
+            emit(Result.Success(true))
+        } catch (e: Exception) {
+            emit(Result.Error(500, e.message.toString()))
+        }
+    }
+
+    suspend fun insertBalanceSheetDate(entity: BalanceSheetDateStockWithDates): Flow<Result<Boolean>> = flow {
+        emit(Result.Loading())
+        try {
+            val localDates = balanceSheetDateDao.getDatesByStockCode(entity.stock.stockCode)
+            val newPeriods = ArrayList<DateEntity>()
+            entity.dates.forEach { newDate ->
+                val allReadyDate = localDates.find { newPeriod ->
+                    newPeriod.stockCode == newDate.stockCode && newPeriod.period == newDate.period
+                }
+                if (allReadyDate == null) {
+                    newPeriods.add(newDate)
+                }
+            }
+            balanceSheetDateDao.insertStock(entity.stock)
+            balanceSheetDateDao.insertDates(newPeriods)
             emit(Result.Success(true))
         } catch (e: Exception) {
             emit(Result.Error(500, e.message.toString()))
@@ -92,9 +114,7 @@ class LocalRepository @Inject constructor(
         try {
             stockEntities.forEach {
                 val localStockInIndexesEntity = stockDao.getStockInIndexesOfStockCode(it.stock.stockCode)
-                val localStockInSectorsEntity = stockDao.getStockInSectorsOfStockCode(it.stock.stockCode)
                 val newStockInIndexes = ArrayList<StockInIndexEntity>()
-                val newStockInSectors = ArrayList<StockInSectorEntity>()
                 it.indexes.forEach { newStockInIndex ->
                     val allReadyStockInIndex = localStockInIndexesEntity.find { newIndex ->
                         newIndex.category == newStockInIndex.category && newIndex.stockCode == newStockInIndex.stockCode
@@ -103,17 +123,8 @@ class LocalRepository @Inject constructor(
                         newStockInIndexes.add(newStockInIndex)
                     }
                 }
-                it.sectors.forEach { newStockInSector ->
-                    val allReadyStockInSector = localStockInSectorsEntity.find { newSector ->
-                        newSector.category == newStockInSector.category && newSector.stockCode == newStockInSector.stockCode
-                    }
-                    if (allReadyStockInSector == null) {
-                        newStockInSectors.add(newStockInSector)
-                    }
-                }
                 stockDao.insertStock(it.stock)
                 stockDao.insertStockInIndexes(newStockInIndexes)
-                stockDao.insertStockInSectors(newStockInSectors)
             }
             emit(Result.Success(true))
         } catch (e: Exception) {
@@ -129,11 +140,12 @@ class LocalRepository @Inject constructor(
             stocks.forEach { stock ->
                 stockResponseList.add(
                     StockResponse(
-                        code = stock.stock.stockCode,
-                        name = stock.stock.stockName,
-                        financialGroup = stock.stock.financialGroup,
-                        indexes = stock.indexes.map { it.category },
-                        sectors = stock.sectors.map { it.category }
+                        stock.stock.stockCode,
+                        stock.stock.stockName,
+                        stock.stock.financialGroup,
+                        stock.stock.mkkMemberOid,
+                        stock.stock.sector,
+                        stock.indexes.map { it.category }
                     )
                 )
             }
@@ -143,16 +155,30 @@ class LocalRepository @Inject constructor(
         }
     }
 
-    suspend fun getStock(stockCode: String): Flow<Result<StockResponse>> = flow {
+    suspend fun getStock(stockCode: String): Flow<Result<StockEntity>> = flow {
         emit(Result.Loading())
         try {
-            stockDao.getStock(stockCode)?.let { stock ->
+            stockDao.getStock(stockCode)?.let {
+                emit(Result.Success(it))
+            } ?: kotlin.run {
+                emit(Result.Error(404, "Hisse bulunamadı!"))
+            }
+        } catch (e: Exception) {
+            emit(Result.Error(500, e.message.toString()))
+        }
+    }
+
+    suspend fun getStockAndIndexAndSector(stockCode: String): Flow<Result<StockResponse>> = flow {
+        emit(Result.Loading())
+        try {
+            stockDao.getStockAndIndexAndSector(stockCode)?.let { stock ->
                 val stockResponse = StockResponse(
                     stock.stock.stockCode,
                     stock.stock.stockName,
                     stock.stock.financialGroup,
-                    stock.indexes.map { it.category },
-                    stock.sectors.map { it.category }
+                    stock.stock.mkkMemberOid,
+                    stock.stock.sector,
+                    stock.indexes.map { it.category }
                 )
                 emit(Result.Success(stockResponse))
             } ?: kotlin.run {
@@ -171,8 +197,9 @@ class LocalRepository @Inject constructor(
                     stock.stock.stockCode,
                     stock.stock.stockName,
                     stock.stock.financialGroup,
-                    stock.indexes.map { it.category },
-                    stock.sectors.map { it.category }
+                    stock.stock.mkkMemberOid,
+                    stock.stock.sector,
+                    stock.indexes.map { it.category }
                 )
                 emit(Result.Success(stockResponse))
             } ?: kotlin.run {
@@ -191,8 +218,9 @@ class LocalRepository @Inject constructor(
                     stock.stock.stockCode,
                     stock.stock.stockName,
                     stock.stock.financialGroup,
-                    stock.indexes.map { it.category },
-                    stock.sectors.map { it.category }
+                    stock.stock.mkkMemberOid,
+                    stock.stock.sector,
+                    stock.indexes.map { it.category }
                 )
                 emit(Result.Success(stockResponse))
             } ?: kotlin.run {
@@ -211,8 +239,9 @@ class LocalRepository @Inject constructor(
                     stock.stock.stockCode,
                     stock.stock.stockName,
                     stock.stock.financialGroup,
-                    stock.indexes.map { it.category },
-                    stock.sectors.map { it.category }
+                    stock.stock.mkkMemberOid,
+                    stock.stock.sector,
+                    stock.indexes.map { it.category }
                 )
                 emit(Result.Success(stockResponse))
             } ?: kotlin.run {
@@ -233,23 +262,10 @@ class LocalRepository @Inject constructor(
         }
     }
 
-    suspend fun insertSectors(sectorEntities: List<SectorEntity>): Flow<Result<Boolean>> = flow {
+    suspend fun insertSectors(sectorEntity: SectorEntity): Flow<Result<Boolean>> = flow {
         emit(Result.Loading())
         try {
-            sectorEntities.forEach { sectorEntity ->
-                val localSubCategorySectorEntities = sectorDao.getSubCategorySectorsOfMainCategory(sectorEntity.mainCategoryEntity.mainCategory)
-                val newSubCategorySectorEntities = ArrayList<SubCategorySectorEntity>()
-                sectorEntity.subCategoryEntities.forEach { newSubCategorySectorEntity ->
-                    val allReadySubCategory = localSubCategorySectorEntities.find { localSubCategorySectorEntity ->
-                        localSubCategorySectorEntity.subCategory == newSubCategorySectorEntity.subCategory
-                    }
-                    if (allReadySubCategory == null) {
-                        newSubCategorySectorEntities.add(newSubCategorySectorEntity)
-                    }
-                }
-                sectorDao.insertMainCategorySector(sectorEntity.mainCategoryEntity)
-                sectorDao.insertSubCategorySector(newSubCategorySectorEntities)
-            }
+            sectorDao.insertSectors(sectorEntity)
             emit(Result.Success(true))
         } catch (e: Exception) {
             emit(Result.Error(500, e.message.toString()))
@@ -266,16 +282,12 @@ class LocalRepository @Inject constructor(
         }
     }
 
-    suspend fun getSectors(): Flow<Result<List<SectorResponse>>> = flow {
+    suspend fun getSectors(): Flow<Result<SectorResponse>> = flow {
         emit(Result.Loading())
         try {
-            val sectors = sectorDao.getSectors().map {
-                SectorResponse(
-                    mainCategory = it.mainCategoryEntity.mainCategory,
-                    subCategories = it.subCategoryEntities.map { map -> map.subCategory },
-                )
-            }
-            emit(Result.Success(sectors))
+            val sectors = sectorDao.getSectors()
+            val sectorResponse = SectorResponse(sectors?.sectors)
+            emit(Result.Success(sectorResponse))
         } catch (e: Exception) {
             emit(Result.Error(500, e.message.toString()))
         }
@@ -313,6 +325,7 @@ class LocalRepository @Inject constructor(
                         stockCode = balanceSheetEntity.stockCode,
                         period = period,
                         price = String.format(Locale.getDefault(), "%.2f", periodPrice),
+                        ebitda = String.format(Locale.getDefault(), "%.2f", ebitda),
                         marketBookAndBookValue = String.format(Locale.getDefault(), "%.2f", marketBookAndBookValue),
                         priceAndEarning = String.format(Locale.getDefault(), "%.2f", priceAndEarning),
                         companyValueAndEbitda = String.format(Locale.getDefault(), "%.2f", companyValueAndEbitda),
@@ -329,18 +342,18 @@ class LocalRepository @Inject constructor(
         }
     }
 
-    suspend fun insertBalanceSheetsByStock(code: String, balanceSheetEntities: List<BalanceSheetEntity>): Flow<Result<BalanceSheetWithRatios>> = flow {
+    suspend fun insertBalanceSheetsByStock(balanceSheetEntities: List<BalanceSheetEntity>): Flow<Result<Boolean>> = flow {
         emit(Result.Loading())
         try {
-            balanceSheetEntities.forEach { balanceSheetEntity ->
+            balanceSheetEntities.forEachIndexed { index, balanceSheetEntity ->
                 val period = balanceSheetEntity.period
                 val localData = balanceSheetDao.getBalanceSheetWithRatios(balanceSheetEntity.stockCode)?.balanceSheets?.find { it.period == period }
-                if (localData != null) return@forEach
+                if (localData != null) return@forEachIndexed
                 val balanceSheetDate = balanceSheetDateDao.getDateByStockCodeAndPeriod(balanceSheetEntity.stockCode, balanceSheetEntity.period)
-                val periodPrice = balanceSheetDate?.price ?: return@forEach
+                val periodPrice = balanceSheetDate?.price ?: return@forEachIndexed
                 val marketValue = balanceSheetEntity.paidCapital.toDoubleOrDefault() * periodPrice
                 val bookValue = balanceSheetEntity.equitiesOfParentCompany.toDoubleOrDefault()
-                val eps = balanceSheetEntity.previousYearsProfitAndLoss.toDoubleOrDefault() / balanceSheetEntity.paidCapital.toDoubleOrDefault()
+                val eps = balanceSheetEntity.periodProfitAndLoss.toDoubleOrDefault() / balanceSheetEntity.paidCapital.toDoubleOrDefault()
                 val netDebt = (balanceSheetEntity.financialDebtsShort.toDoubleOrDefault() + balanceSheetEntity.financialDebtsLong.toDoubleOrDefault()) - (balanceSheetEntity.cashAndCashEquivalents.toDoubleOrDefault() + balanceSheetEntity.financialInvestments.toDoubleOrDefault())
                 val companyValue = marketValue - netDebt
                 val ebitda = balanceSheetEntity.grossProfitAndLoss.toDoubleOrDefault() + balanceSheetEntity.generalAndAdministrativeExpenses.toDoubleOrDefault() + balanceSheetEntity.marketingSalesAndDistributionExpenses.toDoubleOrDefault() + balanceSheetEntity.depreciationAndAmortization.toDoubleOrDefault()
@@ -361,100 +374,7 @@ class LocalRepository @Inject constructor(
                         stockCode = balanceSheetEntity.stockCode,
                         period = period,
                         price = String.format(Locale.getDefault(), "%.2f", periodPrice),
-                        marketBookAndBookValue = String.format(Locale.getDefault(), "%.2f", marketBookAndBookValue),
-                        priceAndEarning = String.format(Locale.getDefault(), "%.2f", priceAndEarning),
-                        companyValueAndEbitda = String.format(Locale.getDefault(), "%.2f", companyValueAndEbitda),
-                        marketValueAndNetOperatingProfit = String.format(Locale.getDefault(), "%.2f", marketValueAndNetOperatingProfit),
-                        companyValueAndNetSales = String.format(Locale.getDefault(), "%.2f", companyValueAndNetSales),
-                        netOperatingProfitAndMarketValue = String.format(Locale.getDefault(), "%.2f", netOperatingProfitAndMarketValue)
-                    )
-                )
-            }
-            balanceSheetDao.getBalanceSheetWithRatios(code)?.let {
-                val sortedBalanceSheetEntities = it.balanceSheets.sortedByDescending { entity ->
-                    val (year, quarter) = entity.period.split("/").map { it.toInt() }
-                    year * 10 + quarter
-                }.take(12)
-                val ratios = ArrayList<BalanceSheetRatioEntity>()
-                val sortedBalanceSheetRatioEntities = it.ratios.sortedByDescending { entity ->
-                    val (year, quarter) = entity.period.split("/").map { it.toInt() }
-                    year * 10 + quarter
-                }.take(12)
-                val lastPeriodBalanceSheetEntity = sortedBalanceSheetEntities.first()
-                balanceSheetDateDao.getStockLastPrice(lastPeriodBalanceSheetEntity.stockCode)?.let { stockLastPrice ->
-                    val lastPrice = stockLastPrice.lastPrice
-                    val marketValue = lastPeriodBalanceSheetEntity.paidCapital.toDoubleOrDefault() * lastPrice
-                    val bookValue = lastPeriodBalanceSheetEntity.equitiesOfParentCompany.toDoubleOrDefault()
-                    val eps = lastPeriodBalanceSheetEntity.previousYearsProfitAndLoss.toDoubleOrDefault() / lastPeriodBalanceSheetEntity.paidCapital.toDoubleOrDefault()
-                    val netDebt = (lastPeriodBalanceSheetEntity.financialDebtsShort.toDoubleOrDefault() + lastPeriodBalanceSheetEntity.financialDebtsLong.toDoubleOrDefault()) - (lastPeriodBalanceSheetEntity.cashAndCashEquivalents.toDoubleOrDefault() + lastPeriodBalanceSheetEntity.financialInvestments.toDoubleOrDefault())
-                    val companyValue = marketValue - netDebt
-                    val ebitda = lastPeriodBalanceSheetEntity.grossProfitAndLoss.toDoubleOrDefault() + lastPeriodBalanceSheetEntity.generalAndAdministrativeExpenses.toDoubleOrDefault() + lastPeriodBalanceSheetEntity.marketingSalesAndDistributionExpenses.toDoubleOrDefault() + lastPeriodBalanceSheetEntity.depreciationAndAmortization.toDoubleOrDefault()
-                    val netOperatingProfitAndLoss = lastPeriodBalanceSheetEntity.netOperatingProfitAndLoss.toDoubleOrDefault()
-                    val netSales = lastPeriodBalanceSheetEntity.salesIncome.toDoubleOrDefault()
-
-                    val marketBookAndBookValue = (marketValue / bookValue)
-                    val priceAndEarning = (lastPrice / eps)
-                    val companyValueAndEbitda = (companyValue / ebitda)
-                    val marketValueAndNetOperatingProfit = (marketValue / netOperatingProfitAndLoss)
-                    val companyValueAndNetSales = (companyValue / netSales)
-                    val netOperatingProfitAndMarketValue = (netOperatingProfitAndLoss / marketValue) * 100
-
-                    val lastRatioEntity = BalanceSheetRatioEntity(
-                        stockCode = code,
-                        period = "Bugün",
-                        price = String.format(Locale.getDefault(), "%.2f", lastPrice),
-                        marketBookAndBookValue = String.format(Locale.getDefault(), "%.2f", marketBookAndBookValue),
-                        priceAndEarning = String.format(Locale.getDefault(), "%.2f", priceAndEarning),
-                        companyValueAndEbitda = String.format(Locale.getDefault(), "%.2f", companyValueAndEbitda),
-                        marketValueAndNetOperatingProfit =String.format(Locale.getDefault(), "%.2f", marketValueAndNetOperatingProfit),
-                        companyValueAndNetSales = String.format(Locale.getDefault(), "%.2f", companyValueAndNetSales),
-                        netOperatingProfitAndMarketValue = String.format(Locale.getDefault(), "%.2f", netOperatingProfitAndMarketValue),
-                    )
-                    ratios.add(lastRatioEntity)
-                }
-                ratios.addAll(sortedBalanceSheetRatioEntities)
-
-                emit(Result.Success(BalanceSheetWithRatios(it.stock, sortedBalanceSheetEntities, ratios)))
-            } ?: kotlin.run {
-                emit(Result.Error(404, "Hisse bulunamadı!"))
-            }
-        } catch (e: Exception) {
-            emit(Result.Error(500, e.message.toString()))
-        }
-    }
-
-    suspend fun insertBalanceSheetsByPeriod(period: String, balanceSheetEntities: List<BalanceSheetEntity>): Flow<Result<Boolean>> = flow {
-        emit(Result.Loading())
-        try {
-            balanceSheetEntities.forEach { balanceSheetEntity ->
-                val period = balanceSheetEntity.period
-                val localData = balanceSheetDao.getBalanceSheetWithRatios(balanceSheetEntity.stockCode)?.balanceSheets?.find { it.period == period }
-                if (localData != null) return@forEach
-                val balanceSheetDate = balanceSheetDateDao.getDateByStockCodeAndPeriod(balanceSheetEntity.stockCode, balanceSheetEntity.period)
-                val periodPrice = balanceSheetDate?.price ?: return@forEach
-                val marketValue = balanceSheetEntity.paidCapital.toDoubleOrDefault() * periodPrice
-                val bookValue = balanceSheetEntity.equitiesOfParentCompany.toDoubleOrDefault()
-                val eps = balanceSheetEntity.previousYearsProfitAndLoss.toDoubleOrDefault() / balanceSheetEntity.paidCapital.toDoubleOrDefault()
-                val netDebt = (balanceSheetEntity.financialDebtsShort.toDoubleOrDefault() + balanceSheetEntity.financialDebtsLong.toDoubleOrDefault()) - (balanceSheetEntity.cashAndCashEquivalents.toDoubleOrDefault() + balanceSheetEntity.financialInvestments.toDoubleOrDefault())
-                val companyValue = marketValue - netDebt
-                val ebitda = balanceSheetEntity.grossProfitAndLoss.toDoubleOrDefault() + balanceSheetEntity.generalAndAdministrativeExpenses.toDoubleOrDefault() + balanceSheetEntity.marketingSalesAndDistributionExpenses.toDoubleOrDefault() + balanceSheetEntity.depreciationAndAmortization.toDoubleOrDefault()
-                val netOperatingProfitAndLoss = balanceSheetEntity.netOperatingProfitAndLoss.toDoubleOrDefault()
-                val netSales = balanceSheetEntity.salesIncome.toDoubleOrDefault()
-
-                val marketBookAndBookValue = (marketValue / bookValue)
-                val priceAndEarning = (periodPrice / eps)
-                val companyValueAndEbitda = (companyValue / ebitda)
-                val marketValueAndNetOperatingProfit = (marketValue / netOperatingProfitAndLoss)
-                val companyValueAndNetSales = (companyValue / netSales)
-                val netOperatingProfitAndMarketValue = (netOperatingProfitAndLoss / marketValue) * 100
-
-                balanceSheetDao.insertBalanceSheetStock(BalanceSheetStockEntity(balanceSheetEntity.stockCode))
-                balanceSheetDao.insertBalanceSheet(balanceSheetEntity)
-                balanceSheetDao.insertBalanceSheetRatios(
-                    BalanceSheetRatioEntity(
-                        stockCode = balanceSheetEntity.stockCode,
-                        period = period,
-                        price = String.format(Locale.getDefault(), "%.2f", periodPrice),
+                        ebitda = String.format(Locale.getDefault(), "%.2f", ebitda),
                         marketBookAndBookValue = String.format(Locale.getDefault(), "%.2f", marketBookAndBookValue),
                         priceAndEarning = String.format(Locale.getDefault(), "%.2f", priceAndEarning),
                         companyValueAndEbitda = String.format(Locale.getDefault(), "%.2f", companyValueAndEbitda),
@@ -470,19 +390,65 @@ class LocalRepository @Inject constructor(
         }
     }
 
-    suspend fun getLastTwelveBalanceSheetWithRatios(stockCode: String): Flow<Result<BalanceSheetWithRatios>> = flow {
+    suspend fun insertBalanceSheetsByPeriod(balanceSheetEntities: List<BalanceSheetEntity>): Flow<Result<Boolean>> = flow {
         emit(Result.Loading())
         try {
-            balanceSheetDao.getBalanceSheetWithRatios(stockCode)?.let {
-                val sortedBalanceSheetEntities = it.balanceSheets.sortedByDescending { entity ->
-                    val (year, quarter) = entity.period.split("/").map { it.toInt() }
-                    year * 10 + quarter
-                }.take(12)
+            balanceSheetEntities.forEach { balanceSheetEntity ->
+                val period = balanceSheetEntity.period
+                val localData = balanceSheetDao.getBalanceSheetWithRatios(balanceSheetEntity.stockCode)?.balanceSheets?.find { it.period == period }
+                if (localData != null) return@forEach
+                val balanceSheetDate = balanceSheetDateDao.getDateByStockCodeAndPeriod(balanceSheetEntity.stockCode, balanceSheetEntity.period)
+                val periodPrice = balanceSheetDate?.price ?: return@forEach
+                val marketValue = balanceSheetEntity.paidCapital.toDoubleOrDefault() * periodPrice
+                val bookValue = balanceSheetEntity.equitiesOfParentCompany.toDoubleOrDefault()
+                val eps = balanceSheetEntity.previousYearsProfitAndLoss.toDoubleOrDefault() / balanceSheetEntity.paidCapital.toDoubleOrDefault()
+                val netDebt = (balanceSheetEntity.financialDebtsShort.toDoubleOrDefault() + balanceSheetEntity.financialDebtsLong.toDoubleOrDefault()) - (balanceSheetEntity.cashAndCashEquivalents.toDoubleOrDefault() + balanceSheetEntity.financialInvestments.toDoubleOrDefault())
+                val companyValue = marketValue - netDebt
+                val ebitda = balanceSheetEntity.grossProfitAndLoss.toDoubleOrDefault() + balanceSheetEntity.generalAndAdministrativeExpenses.toDoubleOrDefault() + balanceSheetEntity.marketingSalesAndDistributionExpenses.toDoubleOrDefault() + balanceSheetEntity.depreciationAndAmortization.toDoubleOrDefault()
+                val netOperatingProfitAndLoss = balanceSheetEntity.netOperatingProfitAndLoss.toDoubleOrDefault()
+                val netSales = balanceSheetEntity.salesIncome.toDoubleOrDefault()
+
+                val marketBookAndBookValue = (marketValue / bookValue)
+                val priceAndEarning = (periodPrice / eps)
+                val companyValueAndEbitda = (companyValue / ebitda)
+                val marketValueAndNetOperatingProfit = (marketValue / netOperatingProfitAndLoss)
+                val companyValueAndNetSales = (companyValue / netSales)
+                val netOperatingProfitAndMarketValue = (netOperatingProfitAndLoss / marketValue) * 100
+
+                balanceSheetDao.insertBalanceSheetStock(BalanceSheetStockEntity(balanceSheetEntity.stockCode))
+                balanceSheetDao.insertBalanceSheet(balanceSheetEntity)
+                balanceSheetDao.insertBalanceSheetRatios(
+                    BalanceSheetRatioEntity(
+                        stockCode = balanceSheetEntity.stockCode,
+                        period = period,
+                        price = String.format(Locale.getDefault(), "%.2f", periodPrice),
+                        ebitda = String.format(Locale.getDefault(), "%.2f", ebitda),
+                        marketBookAndBookValue = String.format(Locale.getDefault(), "%.2f", marketBookAndBookValue),
+                        priceAndEarning = String.format(Locale.getDefault(), "%.2f", priceAndEarning),
+                        companyValueAndEbitda = String.format(Locale.getDefault(), "%.2f", companyValueAndEbitda),
+                        marketValueAndNetOperatingProfit = String.format(Locale.getDefault(), "%.2f", marketValueAndNetOperatingProfit),
+                        companyValueAndNetSales = String.format(Locale.getDefault(), "%.2f", companyValueAndNetSales),
+                        netOperatingProfitAndMarketValue = String.format(Locale.getDefault(), "%.2f", netOperatingProfitAndMarketValue)
+                    )
+                )
+            }
+            emit(Result.Success(true))
+        } catch (e: Exception) {
+            emit(Result.Error(500, e.message.toString()))
+        }
+    }
+
+    suspend fun getBalanceSheetWithRatios(stockCode: String): Flow<Result<BalanceSheetWithRatios>> = flow {
+        emit(Result.Loading())
+        try {
+            balanceSheetDao.getBalanceSheetWithRatios(stockCode)?.let { balanceSheetWithRatios ->
+                val sortedBalanceSheetEntities = balanceSheetWithRatios.balanceSheets.sortedByDescending { entity ->
+                    entity.period.totalNumber()
+                }.filter { it.period.isComparePeriod() }
                 val ratios = ArrayList<BalanceSheetRatioEntity>()
-                val sortedBalanceSheetRatioEntities = it.ratios.sortedByDescending { entity ->
-                    val (year, quarter) = entity.period.split("/").map { it.toInt() }
-                    year * 10 + quarter
-                }.take(12)
+                val sortedBalanceSheetRatioEntities = balanceSheetWithRatios.ratios.sortedByDescending { entity ->
+                    entity.period.totalNumber()
+                }.filter { it.period.isComparePeriod() }
                 val lastPeriodBalanceSheetEntity = sortedBalanceSheetEntities.first()
                 balanceSheetDateDao.getStockLastPrice(lastPeriodBalanceSheetEntity.stockCode)?.let { stockLastPrice ->
                     val lastPrice = stockLastPrice.lastPrice
@@ -506,6 +472,7 @@ class LocalRepository @Inject constructor(
                         stockCode = stockCode,
                         period = "Bugün",
                         price = String.format(Locale.getDefault(), "%.2f", lastPrice),
+                        ebitda = String.format(Locale.getDefault(), "%.2f", ebitda),
                         marketBookAndBookValue = String.format(Locale.getDefault(), "%.2f", marketBookAndBookValue),
                         priceAndEarning = String.format(Locale.getDefault(), "%.2f", priceAndEarning),
                         companyValueAndEbitda = String.format(Locale.getDefault(), "%.2f", companyValueAndEbitda),
@@ -516,8 +483,7 @@ class LocalRepository @Inject constructor(
                     ratios.add(lastRatioEntity)
                 }
                 ratios.addAll(sortedBalanceSheetRatioEntities)
-
-                emit(Result.Success(BalanceSheetWithRatios(it.stock, sortedBalanceSheetEntities, ratios)))
+                emit(Result.Success(BalanceSheetWithRatios(balanceSheetWithRatios.stock, sortedBalanceSheetEntities, ratios)))
             } ?: kotlin.run {
                 emit(Result.Error(404, "Hisse bulunamadı!"))
             }

@@ -1,13 +1,11 @@
 package com.yavuzmobile.borsaanalizim.data.local.entity
 
-import androidx.room.Embedded
-import androidx.room.Relation
+import androidx.room.Entity
+import androidx.room.PrimaryKey
 
+@Entity("sector_table")
 data class SectorEntity(
-    @Embedded val mainCategoryEntity: MainCategorySectorEntity,
-    @Relation(
-        parentColumn = "mainCategory",
-        entityColumn = "mainCategory"
-    )
-    val subCategoryEntities: List<SubCategorySectorEntity>
+    @PrimaryKey(autoGenerate = true)
+    val id: Long = 0,
+    val sectors: List<String>
 )

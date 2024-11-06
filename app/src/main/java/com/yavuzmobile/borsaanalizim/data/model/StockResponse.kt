@@ -8,6 +8,7 @@ data class StockResponse(
     val code: String?,
     val name: String?,
     val financialGroup: String?,
-    val indexes: List<String>?,
-    val sectors: List<String>?
+    val mkkMemberOid: String?,
+    val sector: String?,
+    val indexes: List<String>?
 ) : Parcelable

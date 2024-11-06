@@ -156,7 +156,7 @@ fun StocksScreen(
                                                 modifier = Modifier
                                                     .fillMaxHeight()
                                                     .align(Alignment.CenterVertically)
-                                                    .width(60.dp),
+                                                    .width(65.dp),
                                                 textAlign = TextAlign.Left
                                             )
                                             Text("-", Modifier.padding(end = 4.dp))

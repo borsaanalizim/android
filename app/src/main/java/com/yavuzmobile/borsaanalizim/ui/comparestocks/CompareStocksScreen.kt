@@ -31,9 +31,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.RectangleShape
@@ -50,10 +48,8 @@ import com.yavuzmobile.borsaanalizim.R
 import com.yavuzmobile.borsaanalizim.ext.findActivity
 import com.yavuzmobile.borsaanalizim.model.StockFilter
 import com.yavuzmobile.borsaanalizim.ui.BaseHomeScreen
-import com.yavuzmobile.borsaanalizim.ui.component.GeneralAlertDialog
 import com.yavuzmobile.borsaanalizim.ui.component.SearchAndFilter
 import com.yavuzmobile.borsaanalizim.ui.navgraph.NavigationItem
-import com.yavuzmobile.borsaanalizim.util.NetworkUtil
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -67,7 +63,6 @@ fun CompareStocksScreen(
     activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR
 
     val stocksFilterUiState by viewModel.stocksFilterUiState.collectAsState()
-    val completedAllDownloadsUiState by viewModel.completedAllDownloadsUiState.collectAsState()
     val indexesUiState by viewModel.indexesUiState.collectAsState()
     val sectorsUiState by viewModel.sectorsUiState.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
@@ -77,8 +72,6 @@ fun CompareStocksScreen(
     val selectedItems = remember { mutableStateListOf<StockFilter>() }
 
     val sheetState = rememberModalBottomSheetState()
-
-    var showAlert by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         selectedItems.clear()
@@ -92,12 +85,6 @@ fun CompareStocksScreen(
             .fillMaxSize()
             .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 8.dp)
     ) {
-        if (showAlert) {
-            GeneralAlertDialog(confirmText = "Devam Et", text = "Mobil veri ile büyük miktarda veri indirmek üzeresiniz. Devam etmek istiyor musunuz?", onDismiss = { showAlert = false }) {
-                showAlert = false
-                viewModel.downloadAllBalanceSheets()
-            }
-        }
 
         Column(
             Modifier
@@ -148,26 +135,11 @@ fun CompareStocksScreen(
                         CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
                         return@SwipeRefresh
                     }
-                    if (completedAllDownloadsUiState.isLoading) {
-                        CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
-                        return@SwipeRefresh
-                    }
                     stocksFilterUiState.error?.let { error ->
                         Text(text = "Hata: $error", color = MaterialTheme.colorScheme.error)
                     }
                     stocksFilterUiState.data?.defaultList?.let { defaultList ->
                         if (defaultList.isEmpty()) return@let
-                        Column {
-                            Button(onClick = {
-                                if (NetworkUtil.isMobileDataConnected(context)) {
-                                    showAlert = true
-                                } else {
-                                    viewModel.downloadAllBalanceSheets()
-                                }
-                            }) {
-                                Text("Tüm Hisse Verilerini İndir")
-                            }
-                        }
                     }
                 }
 
@@ -224,17 +196,6 @@ fun CompareStocksScreen(
                                 },
                         )
                         HorizontalDivider()
-                        if (index + 1 == stocksFilterUiState.data?.filteredList?.size) {
-                            Button(onClick = {
-                                if (NetworkUtil.isMobileDataConnected(context)) {
-                                    showAlert = true
-                                } else {
-                                    viewModel.downloadAllBalanceSheets()
-                                }
-                            }, modifier = Modifier.padding(4.dp)) {
-                                Text("Hisse Verilerini Güncelle")
-                            }
-                        }
                     }
                 }
 

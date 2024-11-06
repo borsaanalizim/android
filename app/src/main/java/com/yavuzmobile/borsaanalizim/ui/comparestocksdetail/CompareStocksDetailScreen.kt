@@ -404,7 +404,7 @@ fun DetailTableRatios(modifier: Modifier, stocks: List<StockFilter>) {
             Text("SEKTÖR", fontWeight = FontWeight.Bold, modifier = Modifier.fillMaxWidth())
             stocks.forEach { stock ->
                 Text(
-                    text = "${stock.stock.sectors?.first()}", modifier = Modifier.fillMaxWidth(),
+                    text = "${stock.stock.sector}", modifier = Modifier.fillMaxWidth(),
                     overflow = TextOverflow.Ellipsis,
                     maxLines = 1,
                 )

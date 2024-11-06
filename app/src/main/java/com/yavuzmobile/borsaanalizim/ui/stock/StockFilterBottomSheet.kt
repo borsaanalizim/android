@@ -37,7 +37,7 @@ import com.yavuzmobile.borsaanalizim.util.Constant
 fun StockFilterBottomSheetScreen(
     viewModel: StocksViewModel,
     indexes: List<IndexResponse>,
-    sectors: List<SectorResponse>,
+    sectors: SectorResponse,
     sheetState: SheetState,
     onDismissRequest: () -> Unit
 ) {
@@ -130,29 +130,16 @@ fun StockFilterBottomSheetScreen(
                         },
                         contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding,
                     )
-                    sectors.forEach { sector ->
+                    sectors.sectors?.forEach { sector ->
                         DropdownMenuItem(
-                            text = { Text("${sector.mainCategory}") },
+                            text = { Text(sector) },
                             onClick = {
-                                selectedSector = "${sector.mainCategory}"
+                                selectedSector = sector
                                 expandedSector = false
                             },
-                            contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding,
-                            modifier = Modifier.background(Color.LightGray)
+                            contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding
                         )
                         HorizontalDivider()
-                        sector.subCategories?.forEach { subCategory ->
-                            DropdownMenuItem(
-                                text = { Text(subCategory) },
-                                onClick = {
-                                    selectedSector = subCategory
-                                    expandedSector = false
-                                },
-                                contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding,
-                                modifier = Modifier.padding(start = 16.dp)
-                            )
-                            HorizontalDivider()
-                        }
                     }
                 }
             }

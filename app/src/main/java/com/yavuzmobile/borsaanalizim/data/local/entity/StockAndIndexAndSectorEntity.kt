@@ -9,10 +9,5 @@ data class StockAndIndexAndSectorEntity(
         parentColumn = "stockCode",
         entityColumn = "stockCode"
     )
-    val indexes: List<StockInIndexEntity>,
-    @Relation(
-        parentColumn = "stockCode",
-        entityColumn = "stockCode"
-    )
-    val sectors: List<StockInSectorEntity>
+    val indexes: List<StockInIndexEntity>
 )

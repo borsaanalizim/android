@@ -43,8 +43,8 @@ class CompareStocksViewModel @Inject constructor(
     private val _indexesUiState = MutableStateFlow(UiState<List<IndexResponse>>())
     val indexesUiState: StateFlow<UiState<List<IndexResponse>>> = _indexesUiState.asStateFlow()
 
-    private val _sectorsUiState = MutableStateFlow(UiState<List<SectorResponse>>())
-    val sectorsUiState: StateFlow<UiState<List<SectorResponse>>> = _sectorsUiState.asStateFlow()
+    private val _sectorsUiState = MutableStateFlow(UiState<SectorResponse>())
+    val sectorsUiState: StateFlow<UiState<SectorResponse>> = _sectorsUiState.asStateFlow()
 
     private val _searchQuery = MutableStateFlow("")
     val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
@@ -101,7 +101,7 @@ class CompareStocksViewModel @Inject constructor(
                     val stockCode = balanceSheetRatiosData.stockCode
 
                     // Filter stocks by index and sector
-                    val resultStockByIndexAndSector = localRepository.getStock(stockCode).last()
+                    val resultStockByIndexAndSector = localRepository.getStockAndIndexAndSector(stockCode).last()
                     if (resultStockByIndexAndSector is Result.Loading) {
                         _stocksFilterUiState.update { state -> state.copy(isLoading = true) }
                     }
@@ -202,7 +202,7 @@ class CompareStocksViewModel @Inject constructor(
             if (remoteResult is Result.Error) {
                 _sectorsUiState.update { state -> state.copy(isLoading = false, error = remoteResult.error) }
             }
-            if (remoteResult is Result.Success<List<SectorEntity>>) {
+            if (remoteResult is Result.Success<SectorEntity>) {
                 val insertLocalResult = localRepository.insertSectors(remoteResult.data).last()
                 if (insertLocalResult is Result.Loading) {
                     _sectorsUiState.update { state -> state.copy(isLoading = true) }
@@ -218,7 +218,7 @@ class CompareStocksViewModel @Inject constructor(
                     if (getLocalResult is Result.Error) {
                         _sectorsUiState.update { state -> state.copy(isLoading = false, error = getLocalResult.error) }
                     }
-                    if (getLocalResult is Result.Success<List<SectorResponse>>) {
+                    if (getLocalResult is Result.Success<SectorResponse>) {
                         _sectorsUiState.update { state -> state.copy(isLoading = false, data = getLocalResult.data) }
                         _showFilterBottomSheetState.update { true }
                     }
@@ -256,7 +256,7 @@ class CompareStocksViewModel @Inject constructor(
 
                     // Filter stocks by index and sector
                     val resultStockByIndexAndSector = if (selectedIndexName == Constant.ALL && selectedSectorName == Constant.ALL) {
-                        localRepository.getStock(stockCode).last()
+                        localRepository.getStockAndIndexAndSector(stockCode).last()
                     } else if (selectedIndexName != Constant.ALL && selectedSectorName == Constant.ALL) {
                         localRepository.getStockByIndex(stockCode, selectedIndexName).last()
                     } else if (selectedIndexName == Constant.ALL && selectedSectorName != Constant.ALL) {
@@ -303,8 +303,8 @@ class CompareStocksViewModel @Inject constructor(
     }
 
     fun downloadAllBalanceSheets() {
-        val selectedPeriod = "${_selectedPeriodFilterState.value.year}/${_selectedPeriodFilterState.value.month}"
         viewModelScope.launch {
+            val selectedPeriod = "${_selectedPeriodFilterState.value.year}/${_selectedPeriodFilterState.value.month}"
             handleResult(
                 action = { remoteRepository.fetchBalanceSheetsByPeriod(selectedPeriod) },
                 onLoading = { updateUiState(_completedAllDownloadsUiState, isLoading = true) },
@@ -315,9 +315,8 @@ class CompareStocksViewModel @Inject constructor(
     }
 
     private suspend fun insertBalanceSheets(entities: List<BalanceSheetEntity>) {
-        val selectedPeriod = "${_selectedPeriodFilterState.value.year}/${_selectedPeriodFilterState.value.month}"
         handleResult(
-            action = { localRepository.insertBalanceSheetsByPeriod(selectedPeriod, entities) },
+            action = { localRepository.insertBalanceSheetsByPeriod(entities) },
             onLoading = { updateUiState(_completedAllDownloadsUiState, isLoading = true) },
             onError = { error -> updateUiState(_completedAllDownloadsUiState, error = error.error) },
             onSuccess = { updateUiState(_completedAllDownloadsUiState, data = true) }
