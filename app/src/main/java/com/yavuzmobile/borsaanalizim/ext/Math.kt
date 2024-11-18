@@ -6,6 +6,8 @@ fun String?.toDoubleOrDefault(): Double = if (this.orEmpty().isEmpty()) 0.0 else
 
 fun String?.cleanedNumberFormat(): String = this?.replace(".", "")?.replace(",", ".") ?: "0.00"
 
+fun String?.decimalNumberFormat(): String = this?.replace(".", ",") ?: "0,00"
+
 fun Double?.orDefault(): Double = this ?: kotlin.run { 0.0 }
 
 fun String.totalNumber(): Int {

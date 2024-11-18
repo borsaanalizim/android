@@ -4,6 +4,7 @@ import android.content.pm.ActivityInfo
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -16,6 +17,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -25,40 +27,57 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.GraphicsContext
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.layer.drawLayer
 import androidx.compose.ui.graphics.rememberGraphicsLayer
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.yavuzmobile.borsaanalizim.data.local.entity.BalanceSheetRatioEntity
 import com.yavuzmobile.borsaanalizim.enums.ActionButtons
 import com.yavuzmobile.borsaanalizim.ext.cleanedNumberFormat
+import com.yavuzmobile.borsaanalizim.ext.decimalNumberFormat
 import com.yavuzmobile.borsaanalizim.ext.findActivity
 import com.yavuzmobile.borsaanalizim.ext.toDoubleOrDefault
 import com.yavuzmobile.borsaanalizim.ui.BaseScreen
 import com.yavuzmobile.borsaanalizim.ui.component.bargraphwizard.BarGraphWizard
 import com.yavuzmobile.borsaanalizim.util.RatiosConstant.EXPLANATION_COMPANY_VALUE_AND_EBITDA
 import com.yavuzmobile.borsaanalizim.util.RatiosConstant.EXPLANATION_COMPANY_VALUE_AND_NET_SALES
+import com.yavuzmobile.borsaanalizim.util.RatiosConstant.EXPLANATION_EBITDA_GROWTH_RATE_VALUE
 import com.yavuzmobile.borsaanalizim.util.RatiosConstant.EXPLANATION_MARKET_BOOK_AND_BOOK_VALUE
 import com.yavuzmobile.borsaanalizim.util.RatiosConstant.EXPLANATION_MARKET_VALUE_AND_OPERATION_PROFIT
+import com.yavuzmobile.borsaanalizim.util.RatiosConstant.EXPLANATION_NET_DEBT_EQUITY_RATIO_VALUE
+import com.yavuzmobile.borsaanalizim.util.RatiosConstant.EXPLANATION_NET_OPERATING_MARGIN_VALUE
 import com.yavuzmobile.borsaanalizim.util.RatiosConstant.EXPLANATION_NET_OPERATING_PROFIT_AND_MARKET_VALUE
+import com.yavuzmobile.borsaanalizim.util.RatiosConstant.EXPLANATION_NET_PROFIT_GROWTH_RATE_VALUE
+import com.yavuzmobile.borsaanalizim.util.RatiosConstant.EXPLANATION_NET_REVENUE_GROWTH_RATE_VALUE
 import com.yavuzmobile.borsaanalizim.util.RatiosConstant.EXPLANATION_PRICE_AND_EARNING
+import com.yavuzmobile.borsaanalizim.util.RatiosConstant.EXPLANATION_RETURN_ON_EQUITY_VALUE
 import com.yavuzmobile.borsaanalizim.util.RatiosConstant.LABEL_COMPANY_VALUE_AND_EBITDA
 import com.yavuzmobile.borsaanalizim.util.RatiosConstant.LABEL_COMPANY_VALUE_AND_NET_SALES
+import com.yavuzmobile.borsaanalizim.util.RatiosConstant.LABEL_EBITDA_GROWTH_RATE_VALUE
 import com.yavuzmobile.borsaanalizim.util.RatiosConstant.LABEL_MARKET_BOOK_AND_BOOK_VALUE
 import com.yavuzmobile.borsaanalizim.util.RatiosConstant.LABEL_MARKET_VALUE_AND_OPERATION_PROFIT
+import com.yavuzmobile.borsaanalizim.util.RatiosConstant.LABEL_NET_DEBT_EQUITY_RATIO_VALUE
+import com.yavuzmobile.borsaanalizim.util.RatiosConstant.LABEL_NET_OPERATING_MARGIN_VALUE
 import com.yavuzmobile.borsaanalizim.util.RatiosConstant.LABEL_NET_OPERATING_PROFIT_AND_MARKET_VALUE
+import com.yavuzmobile.borsaanalizim.util.RatiosConstant.LABEL_NET_PROFIT_GROWTH_RATE_VALUE
+import com.yavuzmobile.borsaanalizim.util.RatiosConstant.LABEL_NET_REVENUE_GROWTH_RATE_VALUE
 import com.yavuzmobile.borsaanalizim.util.RatiosConstant.LABEL_PRICE_AND_EARNING
+import com.yavuzmobile.borsaanalizim.util.RatiosConstant.LABEL_RETURN_ON_EQUITY_VALUE
 import com.yavuzmobile.borsaanalizim.util.ShareUtil
 import kotlinx.coroutines.launch
 import java.util.Locale
@@ -212,7 +231,8 @@ fun BalanceSheetScreen(
                             val lastEbitda = balanceSheetWithRatios.ratios[1].ebitda
                             if (balanceSheetWithRatios.ratios.size > 2) {
                                 val previousEbitda = balanceSheetWithRatios.ratios[2].ebitda
-                                val previousPeriod = balanceSheetWithRatios.ratios[2].period
+                                val previousPeriod = balanceSheetWithRatios.
+                                ratios[2].period
                                 val ebitdaRatio = (lastEbitda.cleanedNumberFormat().toDoubleOrDefault() - previousEbitda.cleanedNumberFormat().toDoubleOrDefault()) / previousEbitda.cleanedNumberFormat().toDoubleOrDefault()
                                 Text("${lastPeriod}: " + lastEbitda + " (%${String.format(Locale.getDefault(), "%.2f", ebitdaRatio)})", Modifier.fillMaxWidth(), textAlign = TextAlign.Start)
                                 Text("${previousPeriod}: " + previousEbitda, Modifier.fillMaxWidth(), textAlign = TextAlign.Start)
@@ -220,7 +240,8 @@ fun BalanceSheetScreen(
                             if (balanceSheetWithRatios.ratios.size > 5) {
                                 val previousYearEbitda = balanceSheetWithRatios.ratios[5].ebitda
                                 val previousYearPeriod = balanceSheetWithRatios.ratios[5].period
-                                Text("${previousYearPeriod}: " + previousYearEbitda, Modifier.fillMaxWidth(), textAlign = TextAlign.Start)
+                                val ebitdaRatio = (lastEbitda.cleanedNumberFormat().toDoubleOrDefault() - previousYearEbitda.cleanedNumberFormat().toDoubleOrDefault()) / previousYearEbitda.cleanedNumberFormat().toDoubleOrDefault()
+                                Text("${previousYearPeriod}: " + previousYearEbitda + " (%${String.format(Locale.getDefault(), "%.2f", ebitdaRatio)})", Modifier.fillMaxWidth(), textAlign = TextAlign.Start)
                             }
 
                             BarGraphWizard("DÖNEN VARLIKLAR", currentAssetGraphBarDataList, periodList, currentAssetList)
@@ -238,23 +259,77 @@ fun BalanceSheetScreen(
                             BarGraphWizard("U.V YÜKÜMLÜLÜKLER", longTermLiabilitiesGraphBarDataList, periodList, longTermLiabilitiesList)
                         }
 
-                        val marketBookAndBookValueMin = balanceSheetWithRatios.ratios.minOfOrNull { it.marketBookAndBookValue.cleanedNumberFormat().toDoubleOrDefault() } ?: 0.0
-                        val marketBookAndBookValueMax = balanceSheetWithRatios.ratios.maxOfOrNull { it.marketBookAndBookValue.cleanedNumberFormat().toDoubleOrDefault() } ?: 1.0
+                        val companyValueAndEbitdaValues = balanceSheetWithRatios.ratios.map { it.companyValueAndEbitda.cleanedNumberFormat().toDoubleOrDefault() }
+                        val marketValueAndNetOperatingProfitValues = balanceSheetWithRatios.ratios.map { it.marketValueAndNetOperatingProfit.cleanedNumberFormat().toDoubleOrDefault() }
+                        val companyValueAndNetSalesValues = balanceSheetWithRatios.ratios.map { it.companyValueAndNetSales.cleanedNumberFormat().toDoubleOrDefault() }
+                        val netOperatingProfitAndMarketValues = balanceSheetWithRatios.ratios.map { it.netOperatingProfitAndMarketValue.cleanedNumberFormat().toDoubleOrDefault() }
+                        val netDebtAndEquitiesValues = balanceSheetWithRatios.ratios.map { it.netDebtAndEquities.cleanedNumberFormat().toDoubleOrDefault() }
+                        val netSalesGrowthRateValues = balanceSheetWithRatios.ratios.map { it.salesGrowthRate.cleanedNumberFormat().toDoubleOrDefault() }
+                        val ebitdaGrowthRateValues = balanceSheetWithRatios.ratios.map { it.ebitdaGrowthRate.cleanedNumberFormat().toDoubleOrDefault() }
+                        val netProfitGrowthRateValues = balanceSheetWithRatios.ratios.map { it.netProfitGrowthRate.cleanedNumberFormat().toDoubleOrDefault() }
+                        val operatingProfitMarginValues = balanceSheetWithRatios.ratios.map { it.operatingProfitMargin.cleanedNumberFormat().toDoubleOrDefault() }
+                        val equityProfitabilityValues = balanceSheetWithRatios.ratios.map { it.equityProfitability.cleanedNumberFormat().toDoubleOrDefault() }
 
-                        val priceAndEarningMin = balanceSheetWithRatios.ratios.minOfOrNull { it.priceAndEarning.cleanedNumberFormat().toDoubleOrDefault() } ?: 0.0
-                        val priceAndEarningMax = balanceSheetWithRatios.ratios.maxOfOrNull { it.priceAndEarning.cleanedNumberFormat().toDoubleOrDefault() } ?: 1.0
+                        val clipboardManager = LocalClipboardManager.current
+                        var isProcessing by remember { mutableStateOf(false) }
+                        var copyText by remember { mutableStateOf("") }
 
-                        val companyValueAndEbitdaMin = balanceSheetWithRatios.ratios.minOfOrNull { it.companyValueAndEbitda.cleanedNumberFormat().toDoubleOrDefault() } ?: 0.0
-                        val companyValueAndEbitdaMax = balanceSheetWithRatios.ratios.maxOfOrNull { it.companyValueAndEbitda.cleanedNumberFormat().toDoubleOrDefault() } ?: 1.0
+                        val coroutineScope = rememberCoroutineScope()
 
-                        val marketValueAndNetOperatingProfitMin = balanceSheetWithRatios.ratios.minOfOrNull { it.marketValueAndNetOperatingProfit.cleanedNumberFormat().toDoubleOrDefault() } ?: 0.0
-                        val marketValueAndNetOperatingProfitMax = balanceSheetWithRatios.ratios.maxOfOrNull { it.marketValueAndNetOperatingProfit.cleanedNumberFormat().toDoubleOrDefault() } ?: 1.0
+                        Box(modifier = Modifier.fillMaxWidth().padding(top = 16.dp, end = 16.dp)) {
+                            Button(
+                                onClick = {
+                                    isProcessing = true
+                                    coroutineScope.launch {
+                                        // Metni arka planda hazırla
+                                        copyText = buildString {
+                                            val ratioHeaders = listOf(
+                                                LABEL_COMPANY_VALUE_AND_EBITDA,
+                                                LABEL_MARKET_VALUE_AND_OPERATION_PROFIT,
+                                                LABEL_COMPANY_VALUE_AND_NET_SALES,
+                                                LABEL_NET_OPERATING_PROFIT_AND_MARKET_VALUE,
+                                                "$LABEL_NET_DEBT_EQUITY_RATIO_VALUE ($EXPLANATION_NET_DEBT_EQUITY_RATIO_VALUE)",
+                                                "$LABEL_NET_REVENUE_GROWTH_RATE_VALUE ($EXPLANATION_NET_REVENUE_GROWTH_RATE_VALUE)",
+                                                "$LABEL_EBITDA_GROWTH_RATE_VALUE ($EXPLANATION_EBITDA_GROWTH_RATE_VALUE)",
+                                                "$LABEL_NET_PROFIT_GROWTH_RATE_VALUE ($EXPLANATION_NET_PROFIT_GROWTH_RATE_VALUE)",
+                                                "$LABEL_NET_OPERATING_MARGIN_VALUE ($EXPLANATION_NET_OPERATING_MARGIN_VALUE)",
+                                                "$LABEL_RETURN_ON_EQUITY_VALUE ($EXPLANATION_RETURN_ON_EQUITY_VALUE)"
+                                            )
+                                            val ratioValues: List<(BalanceSheetRatioEntity) -> String> = listOf(
+                                                { it.companyValueAndEbitda },
+                                                { it.marketValueAndNetOperatingProfit },
+                                                { it.companyValueAndNetSales },
+                                                { it.netOperatingProfitAndMarketValue },
+                                                { it.netDebtAndEquities },
+                                                { it.salesGrowthRate },
+                                                { it.ebitdaGrowthRate },
+                                                { it.netProfitGrowthRate },
+                                                { it.operatingProfitMargin },
+                                                { it.equityProfitability }
+                                            )
 
-                        val companyValueAndNetSalesMin = balanceSheetWithRatios.ratios.minOfOrNull { it.companyValueAndNetSales.cleanedNumberFormat().toDoubleOrDefault() } ?: 0.0
-                        val companyValueAndNetSalesMax = balanceSheetWithRatios.ratios.maxOfOrNull { it.companyValueAndNetSales.cleanedNumberFormat().toDoubleOrDefault() } ?: 1.0
 
-                        val netOperatingProfitAndMarketValueMin = balanceSheetWithRatios.ratios.minOfOrNull { it.netOperatingProfitAndMarketValue.cleanedNumberFormat().toDoubleOrDefault() } ?: 0.0
-                        val netOperatingProfitAndMarketValueMax = balanceSheetWithRatios.ratios.maxOfOrNull { it.netOperatingProfitAndMarketValue.cleanedNumberFormat().toDoubleOrDefault() } ?: 1.0
+                                            append("#${code}\n\n")
+                                            ratioHeaders.forEachIndexed { index, header ->
+                                                append("$header: ")
+                                                balanceSheetWithRatios.ratios.forEachIndexed { ratioIndex, ratio ->
+                                                    val value = ratioValues[index](ratio)
+                                                    append("${ratio.period}(${if (index == 3 || index > 4) "$value%" else value})")
+                                                    append(if (ratioIndex == balanceSheetWithRatios.ratios.lastIndex) "\n\n" else ", ")
+                                                }
+                                            }
+                                        }
+                                        // Panoya kopyala
+                                        clipboardManager.setText(AnnotatedString(copyText))
+                                        isProcessing = false
+                                    }
+                                },
+                                modifier = Modifier.align(Alignment.CenterEnd),
+                                enabled = !isProcessing // Butonu işleme sırasında devre dışı bırak
+                            ) {
+                                Text(if (isProcessing) "Processing..." else "Copy Ratios")
+                            }
+                        }
 
                         Row(
                             modifier = Modifier
@@ -293,156 +368,75 @@ fun BalanceSheetScreen(
                                     Text(balanceSheet.price, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
                                 }
                             }
-                            /*
-                            Column(
-                                Modifier
-                                    .width(75.dp)
-                                    .padding(horizontal = 4.dp)
-                            ) {
-                                Text(
-                                    LABEL_MARKET_BOOK_AND_BOOK_VALUE,
-                                    fontWeight = FontWeight.Bold,
-                                    textAlign = TextAlign.Center,
-                                    modifier = Modifier.fillMaxWidth()
-                                )
-                                balanceSheetWithRatios.ratios.forEach { balanceSheet ->
-                                    val backgroundColor = getBackgroundColor(
-                                        balanceSheet.marketBookAndBookValue.cleanedNumberFormat().toDoubleOrDefault(),
-                                        marketBookAndBookValueMin,
-                                        marketBookAndBookValueMax
-                                    )
-                                    Text(
-                                        balanceSheet.marketBookAndBookValue, modifier = Modifier
-                                            .fillMaxWidth()
-                                            .background(backgroundColor), textAlign = TextAlign.Center, color = Color(0xFF333333)
-                                    )
-                                }
-                            }
-                            Column(
-                                Modifier
-                                    .width(75.dp)
-                                    .padding(horizontal = 4.dp)
-                            ) {
-                                Text(
-                                    LABEL_PRICE_AND_EARNING,
-                                    fontWeight = FontWeight.Bold,
-                                    textAlign = TextAlign.Center,
-                                    modifier = Modifier.fillMaxWidth()
-                                )
-                                balanceSheetWithRatios.ratios.forEach { balanceSheet ->
-                                   val backgroundColor = getBackgroundColor(
-                                        balanceSheet.priceAndEarning.cleanedNumberFormat().toDoubleOrDefault(),
-                                        priceAndEarningMin,
-                                        priceAndEarningMax
-                                    )
-                                    Text(
-                                        if (balanceSheet.priceAndEarning.cleanedNumberFormat().toDoubleOrDefault() < 0) "-"
-                                        else balanceSheet.priceAndEarning, modifier = Modifier
-                                            .fillMaxWidth()
-                                            .background(backgroundColor), textAlign = TextAlign.Center, color = Color(0xFF333333)
-                                    )
-                                }
-                            }
-                            */
                             Column(
                                 Modifier
                                     .width(105.dp)
                                     .padding(horizontal = 4.dp)
                             ) {
-                                Text(
-                                    LABEL_COMPANY_VALUE_AND_EBITDA,
-                                    fontWeight = FontWeight.Bold,
-                                    textAlign = TextAlign.Center,
-                                    modifier = Modifier.fillMaxWidth()
-                                )
-                                balanceSheetWithRatios.ratios.forEach { balanceSheet ->
-                                    val backgroundColor = getBackgroundColor(
-                                        balanceSheet.companyValueAndEbitda.cleanedNumberFormat().toDoubleOrDefault(),
-                                        companyValueAndEbitdaMin,
-                                        companyValueAndEbitdaMax
-                                    )
-                                    Text(
-                                        if (balanceSheet.companyValueAndEbitda.cleanedNumberFormat().toDoubleOrDefault() < 0) "-"
-                                        else balanceSheet.companyValueAndEbitda, modifier = Modifier
-                                            .fillMaxWidth()
-                                            .background(backgroundColor), textAlign = TextAlign.Center, color = Color(0xFF333333)
-                                    )
-                                }
+                                TableRatiosItemText(LABEL_COMPANY_VALUE_AND_EBITDA, companyValueAndEbitdaValues, isPercentageRate = false, isInverted = false)
                             }
                             Column(
                                 Modifier
                                     .width(90.dp)
                                     .padding(horizontal = 4.dp)
                             ) {
-                                Text(
-                                    LABEL_MARKET_VALUE_AND_OPERATION_PROFIT,
-                                    fontWeight = FontWeight.Bold,
-                                    textAlign = TextAlign.Center,
-                                    modifier = Modifier.fillMaxWidth()
-                                )
-                                balanceSheetWithRatios.ratios.forEach { balanceSheet ->
-                                    val backgroundColor = getBackgroundColor(
-                                        balanceSheet.marketValueAndNetOperatingProfit.cleanedNumberFormat().toDoubleOrDefault(),
-                                        marketValueAndNetOperatingProfitMin,
-                                        marketValueAndNetOperatingProfitMax
-                                    )
-                                    Text(
-                                        if (balanceSheet.marketValueAndNetOperatingProfit.cleanedNumberFormat().toDoubleOrDefault() < 0) "-"
-                                        else balanceSheet.marketValueAndNetOperatingProfit, modifier = Modifier
-                                            .fillMaxWidth()
-                                            .background(backgroundColor), textAlign = TextAlign.Center, color = Color(0xFF333333)
-                                    )
-                                }
+                                TableRatiosItemText(LABEL_MARKET_VALUE_AND_OPERATION_PROFIT, marketValueAndNetOperatingProfitValues, isPercentageRate = false, isInverted = false)
                             }
                             Column(
                                 Modifier
                                     .width(90.dp)
                                     .padding(horizontal = 4.dp)
                             ) {
-                                Text(
-                                    LABEL_COMPANY_VALUE_AND_NET_SALES,
-                                    fontWeight = FontWeight.Bold,
-                                    textAlign = TextAlign.Center,
-                                    modifier = Modifier.fillMaxWidth()
-                                )
-                                balanceSheetWithRatios.ratios.forEach { balanceSheet ->
-                                    val backgroundColor = getBackgroundColor(
-                                        balanceSheet.companyValueAndNetSales.cleanedNumberFormat().toDoubleOrDefault(),
-                                        companyValueAndNetSalesMin,
-                                        companyValueAndNetSalesMax
-                                    )
-                                    Text(
-                                        if (balanceSheet.companyValueAndNetSales.cleanedNumberFormat().toDoubleOrDefault() < 0) "-"
-                                        else balanceSheet.companyValueAndNetSales, modifier = Modifier
-                                            .fillMaxWidth()
-                                            .background(backgroundColor), textAlign = TextAlign.Center, color = Color(0xFF333333)
-                                    )
-                                }
+                                TableRatiosItemText(LABEL_COMPANY_VALUE_AND_NET_SALES, companyValueAndNetSalesValues, isPercentageRate = false, isInverted = false)
                             }
                             Column(
                                 Modifier
                                     .width(90.dp)
                                     .padding(horizontal = 4.dp)
                             ) {
-                                Text(
-                                    LABEL_NET_OPERATING_PROFIT_AND_MARKET_VALUE,
-                                    fontWeight = FontWeight.Bold,
-                                    textAlign = TextAlign.Center,
-                                    modifier = Modifier.fillMaxWidth()
-                                )
-                                balanceSheetWithRatios.ratios.forEach { balanceSheet ->
-                                    val backgroundColor = getBackgroundColor(
-                                        balanceSheet.netOperatingProfitAndMarketValue.cleanedNumberFormat().toDoubleOrDefault(),
-                                        netOperatingProfitAndMarketValueMin,
-                                        netOperatingProfitAndMarketValueMax,
-                                        true
-                                    )
-                                    Text(
-                                        balanceSheet.netOperatingProfitAndMarketValue + "%", modifier = Modifier
-                                            .fillMaxWidth()
-                                            .background(backgroundColor), textAlign = TextAlign.Center, color = Color(0xFF333333)
-                                    )
-                                }
+                                TableRatiosItemText(LABEL_NET_OPERATING_PROFIT_AND_MARKET_VALUE, netOperatingProfitAndMarketValues, isPercentageRate = true, isInverted = true)
+                            }
+                            Column(
+                                Modifier
+                                    .width(90.dp)
+                                    .padding(horizontal = 4.dp)
+                            ) {
+                                TableRatiosItemText(LABEL_NET_DEBT_EQUITY_RATIO_VALUE, netDebtAndEquitiesValues, isPercentageRate = false, isInverted = false, isReverse = true)
+                            }
+                            Column(
+                                Modifier
+                                    .width(90.dp)
+                                    .padding(horizontal = 4.dp)
+                            ) {
+                                TableRatiosItemText(LABEL_NET_REVENUE_GROWTH_RATE_VALUE, netSalesGrowthRateValues, isPercentageRate = true, isInverted = true)
+                            }
+                            Column(
+                                Modifier
+                                    .width(90.dp)
+                                    .padding(horizontal = 4.dp)
+                            ) {
+                                TableRatiosItemText(LABEL_EBITDA_GROWTH_RATE_VALUE, ebitdaGrowthRateValues, isPercentageRate = true, isInverted = true)
+                            }
+                            Column(
+                                Modifier
+                                    .width(95.dp)
+                                    .padding(horizontal = 4.dp)
+                            ) {
+                                TableRatiosItemText(LABEL_NET_PROFIT_GROWTH_RATE_VALUE, netProfitGrowthRateValues, isPercentageRate = true, isInverted = true)
+                            }
+                            Column(
+                                Modifier
+                                    .width(90.dp)
+                                    .padding(horizontal = 4.dp)
+                            ) {
+                                TableRatiosItemText(LABEL_NET_OPERATING_MARGIN_VALUE, operatingProfitMarginValues, isPercentageRate = true, isInverted = true)
+                            }
+                            Column(
+                                Modifier
+                                    .width(90.dp)
+                                    .padding(horizontal = 4.dp)
+                            ) {
+                                TableRatiosItemText(LABEL_RETURN_ON_EQUITY_VALUE, equityProfitabilityValues, isPercentageRate = true, isInverted = true)
                             }
                         }
 
@@ -464,6 +458,18 @@ fun BalanceSheetScreen(
                             Text("$LABEL_COMPANY_VALUE_AND_NET_SALES: $EXPLANATION_COMPANY_VALUE_AND_NET_SALES")
                             Spacer(Modifier.height(16.dp))
                             Text("$LABEL_NET_OPERATING_PROFIT_AND_MARKET_VALUE: $EXPLANATION_NET_OPERATING_PROFIT_AND_MARKET_VALUE")
+                            Spacer(Modifier.height(16.dp))
+                            Text("$LABEL_NET_DEBT_EQUITY_RATIO_VALUE: $EXPLANATION_NET_DEBT_EQUITY_RATIO_VALUE")
+                            Spacer(Modifier.height(16.dp))
+                            Text("$LABEL_NET_REVENUE_GROWTH_RATE_VALUE: $EXPLANATION_NET_REVENUE_GROWTH_RATE_VALUE")
+                            Spacer(Modifier.height(16.dp))
+                            Text("$LABEL_EBITDA_GROWTH_RATE_VALUE: $EXPLANATION_EBITDA_GROWTH_RATE_VALUE")
+                            Spacer(Modifier.height(16.dp))
+                            Text("$LABEL_NET_PROFIT_GROWTH_RATE_VALUE: $EXPLANATION_NET_PROFIT_GROWTH_RATE_VALUE")
+                            Spacer(Modifier.height(16.dp))
+                            Text("$LABEL_NET_OPERATING_MARGIN_VALUE: $EXPLANATION_NET_OPERATING_MARGIN_VALUE")
+                            Spacer(Modifier.height(16.dp))
+                            Text("$LABEL_RETURN_ON_EQUITY_VALUE: $EXPLANATION_RETURN_ON_EQUITY_VALUE")
                         }
                     }
                 }
@@ -473,49 +479,62 @@ fun BalanceSheetScreen(
 }
 
 @Composable
-fun getBackgroundColor(value: Double, min: Double, max: Double, isInverted: Boolean = false): Color {
-    val mid = if (min < 0) max / 2.0 else (min + max) / 2.0
-    val minTwo = if (min < 0) mid - mid / 10 else mid - (mid + min) / 10
-    val minThree = if (min < 0) mid - mid / 10 * 2 else mid - (mid + min) / 10 * 2
-    val minFour = if (min < 0) mid - mid / 10 * 3 else mid - (mid + min) / 10 * 3
-    val minFive = if (min < 0) mid - mid / 10 * 4 else mid - (mid + min) / 10 * 4
-    val minSix = if (min < 0) mid - mid / 10 * 5 else mid - (mid + min) / 10 * 5
-    val minSeven = if (min < 0) mid - mid / 10 * 6 else mid - (mid + min) / 10 * 6
-    val minEight = if (min < 0) mid - mid / 10 * 7 else mid - (mid + min) / 10 * 7
-    val minNine = if (min < 0) mid - mid / 10 * 8 else mid - (mid + min) / 10 * 8
-    val minTen = if (min < 0) mid / 10 else min + (mid + min) / 10
-    val maxTwo = max - (max - mid) / 10
-    val maxThree = max - (max - mid) / 10 * 2
-    val maxFour = max - (max - mid) / 10 * 3
-    val maxFive = mid - (max - mid) / 10 * 4
-    val maxSix = mid - (max - mid) / 10 * 5
-    val maxSeven = mid - (max - mid) / 10 * 6
-    val maxEight = mid - (max - mid) / 10 * 7
-    val maxNine = mid - (max - mid) / 10 * 8
-    val maxTen = mid - (max - mid) / 10 * 9
-
-    return when {
-        value < 0 -> if (isInverted) Color(0xFFA30000)  else Color(0xFFD5D5D5)
-        value == min -> if (isInverted) Color(0xFFAC1A1A) else Color(0xFF00A300)
-        value == max -> if (isInverted) Color(0xFF00A300) else Color(0xFFAC1A1A)
-        value > min && value <= minTen -> if (isInverted) Color(0xFFB53333) else Color(0xFF1AAC1A)
-        value > minTen && value <= minNine -> if (isInverted) Color(0xFFBE4D4D) else Color(0xFF33B533)
-        value > minNine && value <= minEight -> if (isInverted) Color(0xFFC76666) else Color(0xFF4DBE4D)
-        value > minEight && value <= minSeven -> if (isInverted) Color(0xFFD08080) else Color(0xFF66C766)
-        value > minSeven && value <= minSix -> if (isInverted) Color(0xFFD99999) else Color(0xFF80D080)
-        value > minSix && value <= minFive -> if (isInverted) Color(0xFFE2B3B3) else Color(0xFF99D999)
-        value > minFive && value <= minFour -> if (isInverted) Color(0xFFEBCCCC) else Color(0xFFB3E2B3)
-        value > minFour && value <= minThree -> if (isInverted) Color(0xFFF4E6E6) else Color(0xFFCCEBCC)
-        value > minThree && value <= minTwo -> if (isInverted) Color(0xFFF4E6E6) else Color(0xFFCCEBCC)
-        value < max && value >= maxTwo -> if (isInverted) Color(0xFF1AAC1A) else Color(0xFFAC1A1A)
-        value < maxTwo && value >= maxThree -> if (isInverted) Color(0xFF33B533) else Color(0xFFB53333)
-        value < maxThree && value >= maxFour -> if (isInverted) Color(0xFF4DBE4D) else Color(0xFFBE4D4D)
-        value < maxFour && value >= maxFive -> if (isInverted) Color(0xFF66C766) else Color(0xFFC76666)
-        value < maxFive && value >= maxSix -> if (isInverted) Color(0xFF80D080) else Color(0xFFD08080)
-        value < maxSix && value >= maxSeven -> if (isInverted) Color(0xFF99D999) else Color(0xFFD99999)
-        value < maxSeven && value >= maxEight -> if (isInverted) Color(0xFF99D999) else Color(0xFFE2B3B3)
-        value < maxEight && value >= maxNine -> if (isInverted) Color(0xFFB3E2B3) else Color(0xFFEBCCCC)
-        value < maxNine && value >= maxTen -> if (isInverted) Color(0xFFCCEBCC) else Color(0xFFF4E6E6)
-        else -> if (isInverted) Color(0xFFA30000) else Color(0xFF00A300)
+fun TableRatiosItemText(label: String, values: List<Double>, isPercentageRate: Boolean = false, isInverted: Boolean = false, isReverse: Boolean = false) {
+    Text(
+        label,
+        fontWeight = FontWeight.Bold,
+        textAlign = TextAlign.Center,
+        modifier = Modifier.fillMaxWidth()
+    )
+    values.forEach { valueItem ->
+        val backgroundColor = getBackgroundColor(valueItem, values, isInverted, isReverse)
+        val value = if (isPercentageRate) "$valueItem".decimalNumberFormat() + "%" else "$valueItem".decimalNumberFormat()
+        Text(
+            value,
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(backgroundColor), textAlign = TextAlign.Center, color = Color(0xFF333333)
+        )
     }
+}
+
+@Composable
+fun getBackgroundColor(value: Double, values: List<Double>, isInverted: Boolean = false, isReverse: Boolean = false): Color {
+
+    if (value < 0 && isReverse) {
+        return Color(0xFF00A300)
+    }
+
+    if (value < 0 && !isInverted) {
+        return Color(0xFFA30000)
+    }
+
+    val colors = listOf(
+        Color(0xFF00A300), // En düşük değer (Yeşil)
+        Color(0xFF1AAC1A),
+        Color(0xFF33B533),
+        Color(0xFF4DBE4D),
+        Color(0xFF66C766),
+        Color(0xFF80D080),
+        Color(0xFF99D999),
+        Color(0xFFB3E2B3),
+        Color(0xFFCCEBCC),
+        Color(0xFFEBCCCC),
+        Color(0xFFE2B3B3),
+        Color(0xFFD99999),
+        Color(0xFFD08080),
+        Color(0xFFC76666),
+        Color(0xFFBE4D4D),
+        Color(0xFFB53333),
+        Color(0xFFAC1A1A),
+        Color(0xFFA30000) // En yüksek değer (Kırmızı)
+    )
+
+    val sortedValues = values.sorted()
+    val position = sortedValues.indexOf(value)
+
+    val colorIndex = (position.toFloat() / (values.size - 1) * (colors.size - 1)).toInt()
+    val selectedColor = colors[colorIndex]
+
+    return if (isInverted) colors.reversed()[colorIndex] else selectedColor
 }

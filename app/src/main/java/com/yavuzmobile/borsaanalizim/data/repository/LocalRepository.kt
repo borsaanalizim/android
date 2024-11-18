@@ -6,7 +6,6 @@ import com.yavuzmobile.borsaanalizim.data.local.dao.BalanceSheetDateDao
 import com.yavuzmobile.borsaanalizim.data.local.dao.IndexDao
 import com.yavuzmobile.borsaanalizim.data.local.dao.SectorDao
 import com.yavuzmobile.borsaanalizim.data.local.dao.StockDao
-import com.yavuzmobile.borsaanalizim.data.local.entity.BalanceSheetDateStockEntity
 import com.yavuzmobile.borsaanalizim.data.local.entity.BalanceSheetDateStockWithDates
 import com.yavuzmobile.borsaanalizim.data.local.entity.BalanceSheetEntity
 import com.yavuzmobile.borsaanalizim.data.local.entity.BalanceSheetRatioEntity
@@ -21,6 +20,7 @@ import com.yavuzmobile.borsaanalizim.data.local.entity.StockInIndexEntity
 import com.yavuzmobile.borsaanalizim.data.model.IndexResponse
 import com.yavuzmobile.borsaanalizim.data.model.SectorResponse
 import com.yavuzmobile.borsaanalizim.data.model.StockResponse
+import com.yavuzmobile.borsaanalizim.ext.cleanedNumberFormat
 import com.yavuzmobile.borsaanalizim.ext.isComparePeriod
 import com.yavuzmobile.borsaanalizim.ext.toDoubleOrDefault
 import com.yavuzmobile.borsaanalizim.ext.totalNumber
@@ -78,19 +78,6 @@ class LocalRepository @Inject constructor(
             balanceSheetDateDao.insertStock(entity.stock)
             balanceSheetDateDao.insertDates(newPeriods)
             emit(Result.Success(true))
-        } catch (e: Exception) {
-            emit(Result.Error(500, e.message.toString()))
-        }
-    }
-
-    suspend fun getStockLastPrice(stockCode: String) : Flow<Result<BalanceSheetDateStockEntity>> = flow {
-        emit(Result.Loading())
-        try {
-            balanceSheetDateDao.getStockLastPrice(stockCode)?.let { stock ->
-                emit(Result.Success(stock))
-            } ?: kotlin.run {
-                emit(Result.Error(404, "Hisseye ait veri bulunamadı"))
-            }
         } catch (e: Exception) {
             emit(Result.Error(500, e.message.toString()))
         }
@@ -293,55 +280,6 @@ class LocalRepository @Inject constructor(
         }
     }
 
-    suspend fun insertBalanceSheets(balanceSheetEntities: List<BalanceSheetEntity>): Flow<Result<List<BalanceSheetWithRatios>>> = flow {
-        emit(Result.Loading())
-        try {
-            balanceSheetEntities.forEach { balanceSheetEntity ->
-                val period = balanceSheetEntity.period
-                val localData = balanceSheetDao.getBalanceSheetWithRatios(balanceSheetEntity.stockCode)?.balanceSheets?.find { it.period == period }
-                if (localData != null) return@forEach
-                val balanceSheetDate = balanceSheetDateDao.getDateByStockCodeAndPeriod(balanceSheetEntity.stockCode, balanceSheetEntity.period)
-                val periodPrice = balanceSheetDate?.price ?: return@forEach
-                val marketValue = balanceSheetEntity.paidCapital.toDoubleOrDefault() * periodPrice
-                val bookValue = balanceSheetEntity.equitiesOfParentCompany.toDoubleOrDefault()
-                val eps = balanceSheetEntity.previousYearsProfitAndLoss.toDoubleOrDefault() / balanceSheetEntity.paidCapital.toDoubleOrDefault()
-                val netDebt = (balanceSheetEntity.financialDebtsShort.toDoubleOrDefault() + balanceSheetEntity.financialDebtsLong.toDoubleOrDefault()) - (balanceSheetEntity.cashAndCashEquivalents.toDoubleOrDefault() + balanceSheetEntity.financialInvestments.toDoubleOrDefault())
-                val companyValue = marketValue - netDebt
-                val ebitda = balanceSheetEntity.grossProfitAndLoss.toDoubleOrDefault() + balanceSheetEntity.generalAndAdministrativeExpenses.toDoubleOrDefault() + balanceSheetEntity.marketingSalesAndDistributionExpenses.toDoubleOrDefault() + balanceSheetEntity.depreciationAndAmortization.toDoubleOrDefault()
-                val netOperatingProfitAndLoss = balanceSheetEntity.netOperatingProfitAndLoss.toDoubleOrDefault()
-                val netSales = balanceSheetEntity.salesIncome.toDoubleOrDefault()
-
-                val marketBookAndBookValue = (marketValue / bookValue)
-                val priceAndEarning = (periodPrice / eps)
-                val companyValueAndEbitda = (companyValue / ebitda)
-                val marketValueAndNetOperatingProfit = (marketValue / netOperatingProfitAndLoss)
-                val companyValueAndNetSales = (companyValue / netSales)
-                val netOperatingProfitAndMarketValue = (netOperatingProfitAndLoss / marketValue) * 100
-
-                balanceSheetDao.insertBalanceSheetStock(BalanceSheetStockEntity(balanceSheetEntity.stockCode))
-                balanceSheetDao.insertBalanceSheet(balanceSheetEntity)
-                balanceSheetDao.insertBalanceSheetRatios(
-                    BalanceSheetRatioEntity(
-                        stockCode = balanceSheetEntity.stockCode,
-                        period = period,
-                        price = String.format(Locale.getDefault(), "%.2f", periodPrice),
-                        ebitda = String.format(Locale.getDefault(), "%.2f", ebitda),
-                        marketBookAndBookValue = String.format(Locale.getDefault(), "%.2f", marketBookAndBookValue),
-                        priceAndEarning = String.format(Locale.getDefault(), "%.2f", priceAndEarning),
-                        companyValueAndEbitda = String.format(Locale.getDefault(), "%.2f", companyValueAndEbitda),
-                        marketValueAndNetOperatingProfit = String.format(Locale.getDefault(), "%.2f", marketValueAndNetOperatingProfit),
-                        companyValueAndNetSales = String.format(Locale.getDefault(), "%.2f", companyValueAndNetSales),
-                        netOperatingProfitAndMarketValue = String.format(Locale.getDefault(), "%.2f", netOperatingProfitAndMarketValue)
-                    )
-                )
-            }
-            val balanceSheets = balanceSheetDao.getAllBalanceSheetWithRatios()
-            emit(Result.Success(balanceSheets))
-        } catch (e: Exception) {
-            emit(Result.Error(500, e.message.toString()))
-        }
-    }
-
     suspend fun insertBalanceSheetsByStock(balanceSheetEntities: List<BalanceSheetEntity>): Flow<Result<Boolean>> = flow {
         emit(Result.Loading())
         try {
@@ -351,21 +289,36 @@ class LocalRepository @Inject constructor(
                 if (localData != null) return@forEachIndexed
                 val balanceSheetDate = balanceSheetDateDao.getDateByStockCodeAndPeriod(balanceSheetEntity.stockCode, balanceSheetEntity.period)
                 val periodPrice = balanceSheetDate?.price ?: return@forEachIndexed
+                val equities = balanceSheetEntity.equities.toDoubleOrDefault()
+                val currentNetProfitAndLossForPeriod = balanceSheetEntity.netProfitAndLossPeriod.toDoubleOrDefault()
+                val previousNetProfitAndLossForPeriod = if (index != balanceSheetEntities.lastIndex) balanceSheetEntities[index + 1].netProfitAndLossPeriod.toDoubleOrDefault() else 0.0
                 val marketValue = balanceSheetEntity.paidCapital.toDoubleOrDefault() * periodPrice
                 val bookValue = balanceSheetEntity.equitiesOfParentCompany.toDoubleOrDefault()
-                val eps = balanceSheetEntity.periodProfitAndLoss.toDoubleOrDefault() / balanceSheetEntity.paidCapital.toDoubleOrDefault()
-                val netDebt = (balanceSheetEntity.financialDebtsShort.toDoubleOrDefault() + balanceSheetEntity.financialDebtsLong.toDoubleOrDefault()) - (balanceSheetEntity.cashAndCashEquivalents.toDoubleOrDefault() + balanceSheetEntity.financialInvestments.toDoubleOrDefault())
-                val companyValue = marketValue - netDebt
-                val ebitda = balanceSheetEntity.grossProfitAndLoss.toDoubleOrDefault() + balanceSheetEntity.generalAndAdministrativeExpenses.toDoubleOrDefault() + balanceSheetEntity.marketingSalesAndDistributionExpenses.toDoubleOrDefault() + balanceSheetEntity.depreciationAndAmortization.toDoubleOrDefault()
-                val netOperatingProfitAndLoss = balanceSheetEntity.netOperatingProfitAndLoss.toDoubleOrDefault()
-                val netSales = balanceSheetEntity.salesIncome.toDoubleOrDefault()
 
+                val currentEPS = currentNetProfitAndLossForPeriod / balanceSheetEntity.paidCapital.toDoubleOrDefault()
+                val previousEPS = if (index != balanceSheetEntities.lastIndex) balanceSheetEntities[index + 1].netOperatingProfitAndLoss.toDoubleOrDefault() / balanceSheetEntities[index + 1].paidCapital.toDoubleOrDefault() else 0.0
+                val eps = currentEPS + previousEPS
+                val netDebt = (balanceSheetEntity.shortTermLiabilities.toDoubleOrDefault() + balanceSheetEntity.longTermLiabilities.toDoubleOrDefault()) - (balanceSheetEntity.cashAndCashEquivalents.toDoubleOrDefault() + balanceSheetEntity.financialInvestments.toDoubleOrDefault())
+                val companyValue = marketValue - netDebt
+                val currentEbitda = balanceSheetEntity.grossProfitAndLoss.toDoubleOrDefault() + balanceSheetEntity.generalAndAdministrativeExpenses.toDoubleOrDefault() + balanceSheetEntity.marketingSalesAndDistributionExpenses.toDoubleOrDefault() + balanceSheetEntity.depreciationAndAmortization.toDoubleOrDefault()
+                val previousEbitda = if (index != balanceSheetEntities.lastIndex) balanceSheetEntities[index + 1].grossProfitAndLoss.toDoubleOrDefault() + balanceSheetEntities[index + 1].generalAndAdministrativeExpenses.toDoubleOrDefault() + balanceSheetEntities[index + 1].marketingSalesAndDistributionExpenses.toDoubleOrDefault() + balanceSheetEntities[index + 1].depreciationAndAmortization.toDoubleOrDefault() else 0.0
+                val netOperatingProfitAndLoss = balanceSheetEntity.netOperatingProfitAndLoss.toDoubleOrDefault()
+                val currentSales = balanceSheetEntity.salesIncome.toDoubleOrDefault()
+                val previousSales = if (index != balanceSheetEntities.lastIndex)balanceSheetEntities[index + 1].salesIncome.toDoubleOrDefault() else 0.0
+
+                // RATIOS
                 val marketBookAndBookValue = (marketValue / bookValue)
                 val priceAndEarning = (periodPrice / eps)
-                val companyValueAndEbitda = (companyValue / ebitda)
+                val companyValueAndEbitda = (companyValue / currentEbitda)
                 val marketValueAndNetOperatingProfit = (marketValue / netOperatingProfitAndLoss)
-                val companyValueAndNetSales = (companyValue / netSales)
+                val companyValueAndNetSales = (companyValue / currentSales)
                 val netOperatingProfitAndMarketValue = (netOperatingProfitAndLoss / marketValue) * 100
+                val netDebtAndEquities = netDebt / equities
+                val salesGrowthRate = if (index != balanceSheetEntities.lastIndex) ((currentSales - previousSales) / previousSales) * 100 else 0.0
+                val ebitdaGrowthRate = if (index != balanceSheetEntities.lastIndex) ((currentEbitda - previousEbitda) / previousEbitda) * 100 else 0.0
+                val netProfitGrowthRate = if (index != balanceSheetEntities.lastIndex) ((currentNetProfitAndLossForPeriod - previousNetProfitAndLossForPeriod) / previousNetProfitAndLossForPeriod) * 100 else 0.0
+                val operatingProfitMargin = netOperatingProfitAndLoss / currentSales * 100
+                val equityProfitability = currentNetProfitAndLossForPeriod / equities * 100
 
                 balanceSheetDao.insertBalanceSheetStock(BalanceSheetStockEntity(balanceSheetEntity.stockCode))
                 balanceSheetDao.insertBalanceSheet(balanceSheetEntity)
@@ -374,13 +327,19 @@ class LocalRepository @Inject constructor(
                         stockCode = balanceSheetEntity.stockCode,
                         period = period,
                         price = String.format(Locale.getDefault(), "%.2f", periodPrice),
-                        ebitda = String.format(Locale.getDefault(), "%.2f", ebitda),
+                        ebitda = String.format(Locale.getDefault(), "%.2f", currentEbitda),
                         marketBookAndBookValue = String.format(Locale.getDefault(), "%.2f", marketBookAndBookValue),
                         priceAndEarning = String.format(Locale.getDefault(), "%.2f", priceAndEarning),
                         companyValueAndEbitda = String.format(Locale.getDefault(), "%.2f", companyValueAndEbitda),
                         marketValueAndNetOperatingProfit = String.format(Locale.getDefault(), "%.2f", marketValueAndNetOperatingProfit),
                         companyValueAndNetSales = String.format(Locale.getDefault(), "%.2f", companyValueAndNetSales),
-                        netOperatingProfitAndMarketValue = String.format(Locale.getDefault(), "%.2f", netOperatingProfitAndMarketValue)
+                        netOperatingProfitAndMarketValue = String.format(Locale.getDefault(), "%.2f", netOperatingProfitAndMarketValue),
+                        netDebtAndEquities = String.format(Locale.getDefault(), "%.2f", netDebtAndEquities),
+                        salesGrowthRate = String.format(Locale.getDefault(), "%.2f", salesGrowthRate),
+                        ebitdaGrowthRate = String.format(Locale.getDefault(), "%.2f", ebitdaGrowthRate),
+                        netProfitGrowthRate = String.format(Locale.getDefault(), "%.2f", netProfitGrowthRate),
+                        operatingProfitMargin = String.format(Locale.getDefault(), "%.2f", operatingProfitMargin),
+                        equityProfitability = String.format(Locale.getDefault(), "%.2f", equityProfitability)
                     )
                 )
             }
@@ -393,27 +352,41 @@ class LocalRepository @Inject constructor(
     suspend fun insertBalanceSheetsByPeriod(balanceSheetEntities: List<BalanceSheetEntity>): Flow<Result<Boolean>> = flow {
         emit(Result.Loading())
         try {
-            balanceSheetEntities.forEach { balanceSheetEntity ->
+            balanceSheetEntities.forEachIndexed { index, balanceSheetEntity ->
                 val period = balanceSheetEntity.period
                 val localData = balanceSheetDao.getBalanceSheetWithRatios(balanceSheetEntity.stockCode)?.balanceSheets?.find { it.period == period }
-                if (localData != null) return@forEach
+                if (localData != null) return@forEachIndexed
                 val balanceSheetDate = balanceSheetDateDao.getDateByStockCodeAndPeriod(balanceSheetEntity.stockCode, balanceSheetEntity.period)
-                val periodPrice = balanceSheetDate?.price ?: return@forEach
+                val periodPrice = balanceSheetDate?.price ?: return@forEachIndexed
+                val equities = balanceSheetEntity.equities.toDoubleOrDefault()
+                val currentNetProfitAndLossForPeriod = balanceSheetEntity.netProfitAndLossPeriod.toDoubleOrDefault()
+                val previousNetProfitAndLossForPeriod = if (index != balanceSheetEntities.lastIndex) balanceSheetEntities[index + 1].netProfitAndLossPeriod.toDoubleOrDefault() else 0.0
                 val marketValue = balanceSheetEntity.paidCapital.toDoubleOrDefault() * periodPrice
                 val bookValue = balanceSheetEntity.equitiesOfParentCompany.toDoubleOrDefault()
-                val eps = balanceSheetEntity.previousYearsProfitAndLoss.toDoubleOrDefault() / balanceSheetEntity.paidCapital.toDoubleOrDefault()
-                val netDebt = (balanceSheetEntity.financialDebtsShort.toDoubleOrDefault() + balanceSheetEntity.financialDebtsLong.toDoubleOrDefault()) - (balanceSheetEntity.cashAndCashEquivalents.toDoubleOrDefault() + balanceSheetEntity.financialInvestments.toDoubleOrDefault())
+
+                val currentEPS = currentNetProfitAndLossForPeriod / balanceSheetEntity.paidCapital.toDoubleOrDefault()
+                val previousEPS = if (index != balanceSheetEntities.lastIndex) balanceSheetEntities[index + 1].netOperatingProfitAndLoss.toDoubleOrDefault() / balanceSheetEntities[index + 1].paidCapital.toDoubleOrDefault() else 0.0
+                val eps = currentEPS + previousEPS
+                val netDebt = (balanceSheetEntity.shortTermLiabilities.toDoubleOrDefault() + balanceSheetEntity.longTermLiabilities.toDoubleOrDefault()) - (balanceSheetEntity.cashAndCashEquivalents.toDoubleOrDefault() + balanceSheetEntity.financialInvestments.toDoubleOrDefault())
                 val companyValue = marketValue - netDebt
-                val ebitda = balanceSheetEntity.grossProfitAndLoss.toDoubleOrDefault() + balanceSheetEntity.generalAndAdministrativeExpenses.toDoubleOrDefault() + balanceSheetEntity.marketingSalesAndDistributionExpenses.toDoubleOrDefault() + balanceSheetEntity.depreciationAndAmortization.toDoubleOrDefault()
+                val currentEbitda = balanceSheetEntity.grossProfitAndLoss.toDoubleOrDefault() + balanceSheetEntity.generalAndAdministrativeExpenses.toDoubleOrDefault() + balanceSheetEntity.marketingSalesAndDistributionExpenses.toDoubleOrDefault() + balanceSheetEntity.depreciationAndAmortization.toDoubleOrDefault()
+                val previousEbitda = if (index != balanceSheetEntities.lastIndex) balanceSheetEntities[index + 1].grossProfitAndLoss.toDoubleOrDefault() + balanceSheetEntities[index + 1].generalAndAdministrativeExpenses.toDoubleOrDefault() + balanceSheetEntities[index + 1].marketingSalesAndDistributionExpenses.toDoubleOrDefault() + balanceSheetEntities[index + 1].depreciationAndAmortization.toDoubleOrDefault() else 0.0
                 val netOperatingProfitAndLoss = balanceSheetEntity.netOperatingProfitAndLoss.toDoubleOrDefault()
-                val netSales = balanceSheetEntity.salesIncome.toDoubleOrDefault()
+                val currentSales = balanceSheetEntity.salesIncome.toDoubleOrDefault()
+                val previousSales = if (index != balanceSheetEntities.lastIndex)balanceSheetEntities[index + 1].salesIncome.toDoubleOrDefault() else 0.0
 
                 val marketBookAndBookValue = (marketValue / bookValue)
                 val priceAndEarning = (periodPrice / eps)
-                val companyValueAndEbitda = (companyValue / ebitda)
+                val companyValueAndEbitda = (companyValue / currentEbitda)
                 val marketValueAndNetOperatingProfit = (marketValue / netOperatingProfitAndLoss)
-                val companyValueAndNetSales = (companyValue / netSales)
+                val companyValueAndNetSales = (companyValue / currentSales)
                 val netOperatingProfitAndMarketValue = (netOperatingProfitAndLoss / marketValue) * 100
+                val netDebtAndEquities = netDebt / equities
+                val salesGrowthRate = if (index != balanceSheetEntities.lastIndex) ((currentSales - previousSales) / previousSales) * 100 else 0.0
+                val ebitdaGrowthRate = if (index != balanceSheetEntities.lastIndex) ((currentEbitda - previousEbitda) / previousEbitda) * 100 else 0.0
+                val netProfitGrowthRate = if (index != balanceSheetEntities.lastIndex) ((currentNetProfitAndLossForPeriod - previousNetProfitAndLossForPeriod) / previousNetProfitAndLossForPeriod) * 100 else 0.0
+                val operatingProfitMargin = netOperatingProfitAndLoss / currentSales * 100
+                val equityProfitability = currentNetProfitAndLossForPeriod / equities * 100
 
                 balanceSheetDao.insertBalanceSheetStock(BalanceSheetStockEntity(balanceSheetEntity.stockCode))
                 balanceSheetDao.insertBalanceSheet(balanceSheetEntity)
@@ -422,13 +395,19 @@ class LocalRepository @Inject constructor(
                         stockCode = balanceSheetEntity.stockCode,
                         period = period,
                         price = String.format(Locale.getDefault(), "%.2f", periodPrice),
-                        ebitda = String.format(Locale.getDefault(), "%.2f", ebitda),
+                        ebitda = String.format(Locale.getDefault(), "%.2f", currentEbitda),
                         marketBookAndBookValue = String.format(Locale.getDefault(), "%.2f", marketBookAndBookValue),
                         priceAndEarning = String.format(Locale.getDefault(), "%.2f", priceAndEarning),
                         companyValueAndEbitda = String.format(Locale.getDefault(), "%.2f", companyValueAndEbitda),
                         marketValueAndNetOperatingProfit = String.format(Locale.getDefault(), "%.2f", marketValueAndNetOperatingProfit),
                         companyValueAndNetSales = String.format(Locale.getDefault(), "%.2f", companyValueAndNetSales),
-                        netOperatingProfitAndMarketValue = String.format(Locale.getDefault(), "%.2f", netOperatingProfitAndMarketValue)
+                        netOperatingProfitAndMarketValue = String.format(Locale.getDefault(), "%.2f", netOperatingProfitAndMarketValue),
+                        netDebtAndEquities = String.format(Locale.getDefault(), "%.2f", netDebtAndEquities),
+                        salesGrowthRate = String.format(Locale.getDefault(), "%.2f", salesGrowthRate),
+                        ebitdaGrowthRate = String.format(Locale.getDefault(), "%.2f", ebitdaGrowthRate),
+                        netProfitGrowthRate = String.format(Locale.getDefault(), "%.2f", netProfitGrowthRate),
+                        operatingProfitMargin = String.format(Locale.getDefault(), "%.2f", operatingProfitMargin),
+                        equityProfitability = String.format(Locale.getDefault(), "%.2f", equityProfitability)
                     )
                 )
             }
@@ -454,19 +433,25 @@ class LocalRepository @Inject constructor(
                     val lastPrice = stockLastPrice.lastPrice
                     val marketValue = lastPeriodBalanceSheetEntity.paidCapital.toDoubleOrDefault() * lastPrice
                     val bookValue = lastPeriodBalanceSheetEntity.equitiesOfParentCompany.toDoubleOrDefault()
-                    val eps = lastPeriodBalanceSheetEntity.previousYearsProfitAndLoss.toDoubleOrDefault() / lastPeriodBalanceSheetEntity.paidCapital.toDoubleOrDefault()
+                    val eps = lastPeriodBalanceSheetEntity.periodProfitAndLoss.toDoubleOrDefault() / lastPeriodBalanceSheetEntity.paidCapital.toDoubleOrDefault()
                     val netDebt = (lastPeriodBalanceSheetEntity.financialDebtsShort.toDoubleOrDefault() + lastPeriodBalanceSheetEntity.financialDebtsLong.toDoubleOrDefault()) - (lastPeriodBalanceSheetEntity.cashAndCashEquivalents.toDoubleOrDefault() + lastPeriodBalanceSheetEntity.financialInvestments.toDoubleOrDefault())
                     val companyValue = marketValue - netDebt
                     val ebitda = lastPeriodBalanceSheetEntity.grossProfitAndLoss.toDoubleOrDefault() + lastPeriodBalanceSheetEntity.generalAndAdministrativeExpenses.toDoubleOrDefault() + lastPeriodBalanceSheetEntity.marketingSalesAndDistributionExpenses.toDoubleOrDefault() + lastPeriodBalanceSheetEntity.depreciationAndAmortization.toDoubleOrDefault()
                     val netOperatingProfitAndLoss = lastPeriodBalanceSheetEntity.netOperatingProfitAndLoss.toDoubleOrDefault()
                     val netSales = lastPeriodBalanceSheetEntity.salesIncome.toDoubleOrDefault()
 
-                    val marketBookAndBookValue = (marketValue / bookValue)
-                    val priceAndEarning = (lastPrice / eps)
-                    val companyValueAndEbitda = (companyValue / ebitda)
-                    val marketValueAndNetOperatingProfit = (marketValue / netOperatingProfitAndLoss)
-                    val companyValueAndNetSales = (companyValue / netSales)
+                    val marketBookAndBookValue = marketValue / bookValue
+                    val priceAndEarning = lastPrice / eps
+                    val companyValueAndEbitda = companyValue / ebitda
+                    val marketValueAndNetOperatingProfit = marketValue / netOperatingProfitAndLoss
+                    val companyValueAndNetSales = companyValue / netSales
                     val netOperatingProfitAndMarketValue = (netOperatingProfitAndLoss / marketValue) * 100
+                    val netDebtAndEquities = sortedBalanceSheetRatioEntities.first().netDebtAndEquities.cleanedNumberFormat().toDoubleOrDefault()
+                    val salesGrowthRate = sortedBalanceSheetRatioEntities.first().salesGrowthRate.cleanedNumberFormat().toDoubleOrDefault()
+                    val ebitdaGrowthRate = sortedBalanceSheetRatioEntities.first().ebitdaGrowthRate.cleanedNumberFormat().toDoubleOrDefault()
+                    val netProfitGrowthRate = sortedBalanceSheetRatioEntities.first().netProfitGrowthRate.cleanedNumberFormat().toDoubleOrDefault()
+                    val operatingProfitMargin = sortedBalanceSheetRatioEntities.first().operatingProfitMargin.cleanedNumberFormat().toDoubleOrDefault()
+                    val equityProfitability = sortedBalanceSheetRatioEntities.first().equityProfitability.cleanedNumberFormat().toDoubleOrDefault()
 
                     val lastRatioEntity = BalanceSheetRatioEntity(
                         stockCode = stockCode,
@@ -476,9 +461,15 @@ class LocalRepository @Inject constructor(
                         marketBookAndBookValue = String.format(Locale.getDefault(), "%.2f", marketBookAndBookValue),
                         priceAndEarning = String.format(Locale.getDefault(), "%.2f", priceAndEarning),
                         companyValueAndEbitda = String.format(Locale.getDefault(), "%.2f", companyValueAndEbitda),
-                        marketValueAndNetOperatingProfit =String.format(Locale.getDefault(), "%.2f", marketValueAndNetOperatingProfit),
+                        marketValueAndNetOperatingProfit = String.format(Locale.getDefault(), "%.2f", marketValueAndNetOperatingProfit),
                         companyValueAndNetSales = String.format(Locale.getDefault(), "%.2f", companyValueAndNetSales),
                         netOperatingProfitAndMarketValue = String.format(Locale.getDefault(), "%.2f", netOperatingProfitAndMarketValue),
+                        netDebtAndEquities = String.format(Locale.getDefault(), "%.2f", netDebtAndEquities),
+                        salesGrowthRate = String.format(Locale.getDefault(), "%.2f", salesGrowthRate),
+                        ebitdaGrowthRate = String.format(Locale.getDefault(), "%.2f", ebitdaGrowthRate),
+                        netProfitGrowthRate = String.format(Locale.getDefault(), "%.2f", netProfitGrowthRate),
+                        operatingProfitMargin = String.format(Locale.getDefault(), "%.2f", operatingProfitMargin),
+                        equityProfitability = String.format(Locale.getDefault(), "%.2f", equityProfitability)
                     )
                     ratios.add(lastRatioEntity)
                 }

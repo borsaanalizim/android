@@ -18,4 +18,22 @@ object RatiosConstant {
 
     const val LABEL_NET_OPERATING_PROFIT_AND_MARKET_VALUE = "NFK / PD"
     const val EXPLANATION_NET_OPERATING_PROFIT_AND_MARKET_VALUE = "Şirket piyasa değerinin yüzde kaçı kadar ana işinden kar elde edebiliyor durumunu gösteriyor."
+
+    const val LABEL_NET_DEBT_EQUITY_RATIO_VALUE = "D/E"
+    const val EXPLANATION_NET_DEBT_EQUITY_RATIO_VALUE = "Net Borç/Özsermaye Oranı"
+
+    const val LABEL_NET_REVENUE_GROWTH_RATE_VALUE = "RGR"
+    const val EXPLANATION_NET_REVENUE_GROWTH_RATE_VALUE = "Net Satış Büyüme Oranı"
+
+    const val LABEL_EBITDA_GROWTH_RATE_VALUE = "EGR"
+    const val EXPLANATION_EBITDA_GROWTH_RATE_VALUE = "FAVÖK Büyüme Oranı"
+
+    const val LABEL_NET_PROFIT_GROWTH_RATE_VALUE = "PGR"
+    const val EXPLANATION_NET_PROFIT_GROWTH_RATE_VALUE = "Net Kâr Büyüme Oranı"
+
+    const val LABEL_NET_OPERATING_MARGIN_VALUE = "OPM"
+    const val EXPLANATION_NET_OPERATING_MARGIN_VALUE = "Net Faaliyet Kar Marjı"
+
+    const val LABEL_RETURN_ON_EQUITY_VALUE = "ROE"
+    const val EXPLANATION_RETURN_ON_EQUITY_VALUE = "Özsermaye Karlılığı"
 }
