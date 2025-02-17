@@ -1,5 +1,6 @@
 package com.yavuzmobile.borsaanalizim.data.repository
 
+import android.util.Log
 import com.yavuzmobile.borsaanalizim.data.Result
 import com.yavuzmobile.borsaanalizim.data.local.dao.BalanceSheetDao
 import com.yavuzmobile.borsaanalizim.data.local.dao.BalanceSheetDateDao
@@ -22,6 +23,7 @@ import com.yavuzmobile.borsaanalizim.data.model.SectorResponse
 import com.yavuzmobile.borsaanalizim.data.model.StockResponse
 import com.yavuzmobile.borsaanalizim.ext.cleanedNumberFormat
 import com.yavuzmobile.borsaanalizim.ext.isComparePeriod
+import com.yavuzmobile.borsaanalizim.ext.orDefault
 import com.yavuzmobile.borsaanalizim.ext.toDoubleOrDefault
 import com.yavuzmobile.borsaanalizim.ext.totalNumber
 import kotlinx.coroutines.flow.Flow
@@ -283,19 +285,34 @@ class LocalRepository @Inject constructor(
     suspend fun insertBalanceSheetsByStock(balanceSheetEntities: List<BalanceSheetEntity>): Flow<Result<Boolean>> = flow {
         emit(Result.Loading())
         try {
+            var splitRatio = 1.0
             balanceSheetEntities.forEachIndexed { index, balanceSheetEntity ->
                 val period = balanceSheetEntity.period
                 val localData = balanceSheetDao.getBalanceSheetWithRatios(balanceSheetEntity.stockCode)?.balanceSheets?.find { it.period == period }
                 if (localData != null) return@forEachIndexed
+                val currentAssets = balanceSheetEntity.currentAssets.toDoubleOrDefault()
+                val currentPaidCapital = balanceSheetEntity.paidCapital.toDoubleOrDefault()
+                val inventories = balanceSheetEntity.inventories.toDoubleOrDefault()
+                val totalAssets = balanceSheetEntity.totalAssets.toDoubleOrDefault()
+                val operatingProfitAndLoss = balanceSheetEntity.operatingProfitAndLoss.toDoubleOrDefault()
+                val shortTermLiabilities = balanceSheetEntity.shortTermLiabilities.toDoubleOrDefault()
+                val otherExpenses = balanceSheetEntity.otherExpenses.toDoubleOrDefault()
+                if (index != 0) {
+                    val previousPaidCapital = balanceSheetEntities[index - 1].paidCapital.toDoubleOrDefault()
+                    if (currentPaidCapital != previousPaidCapital) {
+                        splitRatio = splitRatio * previousPaidCapital / currentPaidCapital
+                    }
+                }
                 val balanceSheetDate = balanceSheetDateDao.getDateByStockCodeAndPeriod(balanceSheetEntity.stockCode, balanceSheetEntity.period)
                 val periodPrice = balanceSheetDate?.price ?: return@forEachIndexed
+                val resultPeriodPrice = periodPrice * splitRatio
                 val equities = balanceSheetEntity.equities.toDoubleOrDefault()
                 val currentNetProfitAndLossForPeriod = balanceSheetEntity.netProfitAndLossPeriod.toDoubleOrDefault()
                 val previousNetProfitAndLossForPeriod = if (index != balanceSheetEntities.lastIndex) balanceSheetEntities[index + 1].netProfitAndLossPeriod.toDoubleOrDefault() else 0.0
-                val marketValue = balanceSheetEntity.paidCapital.toDoubleOrDefault() * periodPrice
+                val marketValue = currentPaidCapital * resultPeriodPrice
                 val bookValue = balanceSheetEntity.equitiesOfParentCompany.toDoubleOrDefault()
 
-                val currentEPS = currentNetProfitAndLossForPeriod / balanceSheetEntity.paidCapital.toDoubleOrDefault()
+                val currentEPS = currentNetProfitAndLossForPeriod / currentPaidCapital
                 val previousEPS = if (index != balanceSheetEntities.lastIndex) balanceSheetEntities[index + 1].netOperatingProfitAndLoss.toDoubleOrDefault() / balanceSheetEntities[index + 1].paidCapital.toDoubleOrDefault() else 0.0
                 val eps = currentEPS + previousEPS
                 val netDebt = (balanceSheetEntity.shortTermLiabilities.toDoubleOrDefault() + balanceSheetEntity.longTermLiabilities.toDoubleOrDefault()) - (balanceSheetEntity.cashAndCashEquivalents.toDoubleOrDefault() + balanceSheetEntity.financialInvestments.toDoubleOrDefault())
@@ -308,17 +325,21 @@ class LocalRepository @Inject constructor(
 
                 // RATIOS
                 val marketBookAndBookValue = (marketValue / bookValue)
-                val priceAndEarning = (periodPrice / eps)
+                val priceAndEarning = (resultPeriodPrice / eps)
                 val companyValueAndEbitda = (companyValue / currentEbitda)
                 val marketValueAndNetOperatingProfit = (marketValue / netOperatingProfitAndLoss)
                 val companyValueAndNetSales = (companyValue / currentSales)
                 val netOperatingProfitAndMarketValue = (netOperatingProfitAndLoss / marketValue) * 100
-                val netDebtAndEquities = netDebt / equities
                 val salesGrowthRate = if (index != balanceSheetEntities.lastIndex) ((currentSales - previousSales) / previousSales) * 100 else 0.0
                 val ebitdaGrowthRate = if (index != balanceSheetEntities.lastIndex) ((currentEbitda - previousEbitda) / previousEbitda) * 100 else 0.0
                 val netProfitGrowthRate = if (index != balanceSheetEntities.lastIndex) ((currentNetProfitAndLossForPeriod - previousNetProfitAndLossForPeriod) / previousNetProfitAndLossForPeriod) * 100 else 0.0
                 val operatingProfitMargin = netOperatingProfitAndLoss / currentSales * 100
                 val equityProfitability = currentNetProfitAndLossForPeriod / equities * 100
+                val currentRate = currentAssets / shortTermLiabilities
+                val acidTestRate = (currentAssets - inventories) / shortTermLiabilities
+                val netDebtAndEquities = netDebt / equities
+                val financialLeverage = totalAssets / equities
+                val interestCoverage = operatingProfitAndLoss / otherExpenses
 
                 balanceSheetDao.insertBalanceSheetStock(BalanceSheetStockEntity(balanceSheetEntity.stockCode))
                 balanceSheetDao.insertBalanceSheet(balanceSheetEntity)
@@ -326,7 +347,7 @@ class LocalRepository @Inject constructor(
                     BalanceSheetRatioEntity(
                         stockCode = balanceSheetEntity.stockCode,
                         period = period,
-                        price = String.format(Locale.getDefault(), "%.2f", periodPrice),
+                        price = String.format(Locale.getDefault(), "%.2f", resultPeriodPrice),
                         ebitda = String.format(Locale.getDefault(), "%.2f", currentEbitda),
                         marketBookAndBookValue = String.format(Locale.getDefault(), "%.2f", marketBookAndBookValue),
                         priceAndEarning = String.format(Locale.getDefault(), "%.2f", priceAndEarning),
@@ -334,12 +355,16 @@ class LocalRepository @Inject constructor(
                         marketValueAndNetOperatingProfit = String.format(Locale.getDefault(), "%.2f", marketValueAndNetOperatingProfit),
                         companyValueAndNetSales = String.format(Locale.getDefault(), "%.2f", companyValueAndNetSales),
                         netOperatingProfitAndMarketValue = String.format(Locale.getDefault(), "%.2f", netOperatingProfitAndMarketValue),
-                        netDebtAndEquities = String.format(Locale.getDefault(), "%.2f", netDebtAndEquities),
                         salesGrowthRate = String.format(Locale.getDefault(), "%.2f", salesGrowthRate),
                         ebitdaGrowthRate = String.format(Locale.getDefault(), "%.2f", ebitdaGrowthRate),
                         netProfitGrowthRate = String.format(Locale.getDefault(), "%.2f", netProfitGrowthRate),
                         operatingProfitMargin = String.format(Locale.getDefault(), "%.2f", operatingProfitMargin),
-                        equityProfitability = String.format(Locale.getDefault(), "%.2f", equityProfitability)
+                        equityProfitability = String.format(Locale.getDefault(), "%.2f", equityProfitability),
+                        currentRate = String.format(Locale.getDefault(), "%.2f", currentRate),
+                        acidTestRate = String.format(Locale.getDefault(), "%.2f", acidTestRate),
+                        netDebtAndEquities = String.format(Locale.getDefault(), "%.2f", netDebtAndEquities),
+                        financialLeverage = String.format(Locale.getDefault(), "%.2f", financialLeverage),
+                        interestCoverage = String.format(Locale.getDefault(), "%.2f", interestCoverage)
                     )
                 )
             }
@@ -352,19 +377,36 @@ class LocalRepository @Inject constructor(
     suspend fun insertBalanceSheetsByPeriod(balanceSheetEntities: List<BalanceSheetEntity>): Flow<Result<Boolean>> = flow {
         emit(Result.Loading())
         try {
+            var splitRatio = 1.0
             balanceSheetEntities.forEachIndexed { index, balanceSheetEntity ->
                 val period = balanceSheetEntity.period
                 val localData = balanceSheetDao.getBalanceSheetWithRatios(balanceSheetEntity.stockCode)?.balanceSheets?.find { it.period == period }
                 if (localData != null) return@forEachIndexed
+                val currentAssets = balanceSheetEntity.currentAssets.toDoubleOrDefault()
+                val currentPaidCapital = balanceSheetEntity.paidCapital.toDoubleOrDefault()
+                val inventories = balanceSheetEntity.inventories.toDoubleOrDefault()
+                val totalAssets = balanceSheetEntity.totalAssets.toDoubleOrDefault()
+                val operatingProfitAndLoss = balanceSheetEntity.operatingProfitAndLoss.toDoubleOrDefault()
+                val shortTermLiabilities = balanceSheetEntity.shortTermLiabilities.toDoubleOrDefault()
+                val otherExpenses = balanceSheetEntity.otherExpenses.toDoubleOrDefault()
+                if (index != 0 && balanceSheetEntity.stockCode == balanceSheetEntities[index - 1].stockCode) {
+                    val nextPeriodPaidCapital = balanceSheetEntities[index - 1].paidCapital.toDoubleOrDefault()
+                    if (currentPaidCapital != nextPeriodPaidCapital) {
+                        splitRatio = splitRatio * nextPeriodPaidCapital / currentPaidCapital
+                    }
+                } else {
+                    splitRatio = 1.0
+                }
                 val balanceSheetDate = balanceSheetDateDao.getDateByStockCodeAndPeriod(balanceSheetEntity.stockCode, balanceSheetEntity.period)
                 val periodPrice = balanceSheetDate?.price ?: return@forEachIndexed
+                val resultPeriodPrice = periodPrice * splitRatio
                 val equities = balanceSheetEntity.equities.toDoubleOrDefault()
                 val currentNetProfitAndLossForPeriod = balanceSheetEntity.netProfitAndLossPeriod.toDoubleOrDefault()
                 val previousNetProfitAndLossForPeriod = if (index != balanceSheetEntities.lastIndex) balanceSheetEntities[index + 1].netProfitAndLossPeriod.toDoubleOrDefault() else 0.0
-                val marketValue = balanceSheetEntity.paidCapital.toDoubleOrDefault() * periodPrice
+                val marketValue = currentPaidCapital * resultPeriodPrice
                 val bookValue = balanceSheetEntity.equitiesOfParentCompany.toDoubleOrDefault()
 
-                val currentEPS = currentNetProfitAndLossForPeriod / balanceSheetEntity.paidCapital.toDoubleOrDefault()
+                val currentEPS = currentNetProfitAndLossForPeriod / currentPaidCapital
                 val previousEPS = if (index != balanceSheetEntities.lastIndex) balanceSheetEntities[index + 1].netOperatingProfitAndLoss.toDoubleOrDefault() / balanceSheetEntities[index + 1].paidCapital.toDoubleOrDefault() else 0.0
                 val eps = currentEPS + previousEPS
                 val netDebt = (balanceSheetEntity.shortTermLiabilities.toDoubleOrDefault() + balanceSheetEntity.longTermLiabilities.toDoubleOrDefault()) - (balanceSheetEntity.cashAndCashEquivalents.toDoubleOrDefault() + balanceSheetEntity.financialInvestments.toDoubleOrDefault())
@@ -376,17 +418,21 @@ class LocalRepository @Inject constructor(
                 val previousSales = if (index != balanceSheetEntities.lastIndex)balanceSheetEntities[index + 1].salesIncome.toDoubleOrDefault() else 0.0
 
                 val marketBookAndBookValue = (marketValue / bookValue)
-                val priceAndEarning = (periodPrice / eps)
+                val priceAndEarning = (resultPeriodPrice / eps)
                 val companyValueAndEbitda = (companyValue / currentEbitda)
                 val marketValueAndNetOperatingProfit = (marketValue / netOperatingProfitAndLoss)
                 val companyValueAndNetSales = (companyValue / currentSales)
                 val netOperatingProfitAndMarketValue = (netOperatingProfitAndLoss / marketValue) * 100
-                val netDebtAndEquities = netDebt / equities
                 val salesGrowthRate = if (index != balanceSheetEntities.lastIndex) ((currentSales - previousSales) / previousSales) * 100 else 0.0
                 val ebitdaGrowthRate = if (index != balanceSheetEntities.lastIndex) ((currentEbitda - previousEbitda) / previousEbitda) * 100 else 0.0
                 val netProfitGrowthRate = if (index != balanceSheetEntities.lastIndex) ((currentNetProfitAndLossForPeriod - previousNetProfitAndLossForPeriod) / previousNetProfitAndLossForPeriod) * 100 else 0.0
                 val operatingProfitMargin = netOperatingProfitAndLoss / currentSales * 100
                 val equityProfitability = currentNetProfitAndLossForPeriod / equities * 100
+                val currentRate = currentAssets / shortTermLiabilities
+                val acidTestRate = (currentAssets - inventories) / shortTermLiabilities
+                val netDebtAndEquities = netDebt / equities
+                val financialLeverage = totalAssets / equities
+                val interestCoverage = operatingProfitAndLoss / otherExpenses
 
                 balanceSheetDao.insertBalanceSheetStock(BalanceSheetStockEntity(balanceSheetEntity.stockCode))
                 balanceSheetDao.insertBalanceSheet(balanceSheetEntity)
@@ -394,7 +440,7 @@ class LocalRepository @Inject constructor(
                     BalanceSheetRatioEntity(
                         stockCode = balanceSheetEntity.stockCode,
                         period = period,
-                        price = String.format(Locale.getDefault(), "%.2f", periodPrice),
+                        price = String.format(Locale.getDefault(), "%.2f", resultPeriodPrice),
                         ebitda = String.format(Locale.getDefault(), "%.2f", currentEbitda),
                         marketBookAndBookValue = String.format(Locale.getDefault(), "%.2f", marketBookAndBookValue),
                         priceAndEarning = String.format(Locale.getDefault(), "%.2f", priceAndEarning),
@@ -402,14 +448,19 @@ class LocalRepository @Inject constructor(
                         marketValueAndNetOperatingProfit = String.format(Locale.getDefault(), "%.2f", marketValueAndNetOperatingProfit),
                         companyValueAndNetSales = String.format(Locale.getDefault(), "%.2f", companyValueAndNetSales),
                         netOperatingProfitAndMarketValue = String.format(Locale.getDefault(), "%.2f", netOperatingProfitAndMarketValue),
-                        netDebtAndEquities = String.format(Locale.getDefault(), "%.2f", netDebtAndEquities),
                         salesGrowthRate = String.format(Locale.getDefault(), "%.2f", salesGrowthRate),
                         ebitdaGrowthRate = String.format(Locale.getDefault(), "%.2f", ebitdaGrowthRate),
                         netProfitGrowthRate = String.format(Locale.getDefault(), "%.2f", netProfitGrowthRate),
                         operatingProfitMargin = String.format(Locale.getDefault(), "%.2f", operatingProfitMargin),
-                        equityProfitability = String.format(Locale.getDefault(), "%.2f", equityProfitability)
+                        equityProfitability = String.format(Locale.getDefault(), "%.2f", equityProfitability),
+                        currentRate = String.format(Locale.getDefault(), "%.2f", currentRate),
+                        acidTestRate = String.format(Locale.getDefault(), "%.2f", acidTestRate),
+                        netDebtAndEquities = String.format(Locale.getDefault(), "%.2f", netDebtAndEquities),
+                        financialLeverage = String.format(Locale.getDefault(), "%.2f", financialLeverage),
+                        interestCoverage = String.format(Locale.getDefault(), "%.2f", interestCoverage)
                     )
                 )
+                Log.i("INSERT_BY_PERIOD", "CODE: ${balanceSheetEntity.stockCode} - PERIOD: $period - PRICE: $periodPrice")
             }
             emit(Result.Success(true))
         } catch (e: Exception) {
@@ -446,12 +497,16 @@ class LocalRepository @Inject constructor(
                     val marketValueAndNetOperatingProfit = marketValue / netOperatingProfitAndLoss
                     val companyValueAndNetSales = companyValue / netSales
                     val netOperatingProfitAndMarketValue = (netOperatingProfitAndLoss / marketValue) * 100
-                    val netDebtAndEquities = sortedBalanceSheetRatioEntities.first().netDebtAndEquities.cleanedNumberFormat().toDoubleOrDefault()
                     val salesGrowthRate = sortedBalanceSheetRatioEntities.first().salesGrowthRate.cleanedNumberFormat().toDoubleOrDefault()
                     val ebitdaGrowthRate = sortedBalanceSheetRatioEntities.first().ebitdaGrowthRate.cleanedNumberFormat().toDoubleOrDefault()
                     val netProfitGrowthRate = sortedBalanceSheetRatioEntities.first().netProfitGrowthRate.cleanedNumberFormat().toDoubleOrDefault()
                     val operatingProfitMargin = sortedBalanceSheetRatioEntities.first().operatingProfitMargin.cleanedNumberFormat().toDoubleOrDefault()
                     val equityProfitability = sortedBalanceSheetRatioEntities.first().equityProfitability.cleanedNumberFormat().toDoubleOrDefault()
+                    val currentRate = sortedBalanceSheetRatioEntities.first().currentRate.cleanedNumberFormat().toDoubleOrDefault()
+                    val acidTestRate = sortedBalanceSheetRatioEntities.first().acidTestRate.cleanedNumberFormat().toDoubleOrDefault()
+                    val netDebtAndEquities = sortedBalanceSheetRatioEntities.first().netDebtAndEquities.cleanedNumberFormat().toDoubleOrDefault()
+                    val financialLeverage = sortedBalanceSheetRatioEntities.first().financialLeverage.cleanedNumberFormat().toDoubleOrDefault()
+                    val interestCoverage = sortedBalanceSheetRatioEntities.first().interestCoverage.cleanedNumberFormat().toDoubleOrDefault()
 
                     val lastRatioEntity = BalanceSheetRatioEntity(
                         stockCode = stockCode,
@@ -464,12 +519,16 @@ class LocalRepository @Inject constructor(
                         marketValueAndNetOperatingProfit = String.format(Locale.getDefault(), "%.2f", marketValueAndNetOperatingProfit),
                         companyValueAndNetSales = String.format(Locale.getDefault(), "%.2f", companyValueAndNetSales),
                         netOperatingProfitAndMarketValue = String.format(Locale.getDefault(), "%.2f", netOperatingProfitAndMarketValue),
-                        netDebtAndEquities = String.format(Locale.getDefault(), "%.2f", netDebtAndEquities),
                         salesGrowthRate = String.format(Locale.getDefault(), "%.2f", salesGrowthRate),
                         ebitdaGrowthRate = String.format(Locale.getDefault(), "%.2f", ebitdaGrowthRate),
                         netProfitGrowthRate = String.format(Locale.getDefault(), "%.2f", netProfitGrowthRate),
                         operatingProfitMargin = String.format(Locale.getDefault(), "%.2f", operatingProfitMargin),
-                        equityProfitability = String.format(Locale.getDefault(), "%.2f", equityProfitability)
+                        equityProfitability = String.format(Locale.getDefault(), "%.2f", equityProfitability),
+                        currentRate = String.format(Locale.getDefault(), "%.2f", currentRate),
+                        acidTestRate = String.format(Locale.getDefault(), "%.2f", acidTestRate),
+                        netDebtAndEquities = String.format(Locale.getDefault(), "%.2f", netDebtAndEquities),
+                        financialLeverage = String.format(Locale.getDefault(), "%.2f", financialLeverage),
+                        interestCoverage = String.format(Locale.getDefault(), "%.2f", interestCoverage)
                     )
                     ratios.add(lastRatioEntity)
                 }

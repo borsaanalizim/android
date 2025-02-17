@@ -1,6 +1,7 @@
 package com.yavuzmobile.borsaanalizim.ui.balancesheet
 
 import android.content.pm.ActivityInfo
+import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -66,9 +67,13 @@ import com.yavuzmobile.borsaanalizim.util.RatiosConstant.EXPLANATION_NET_PROFIT_
 import com.yavuzmobile.borsaanalizim.util.RatiosConstant.EXPLANATION_NET_REVENUE_GROWTH_RATE_VALUE
 import com.yavuzmobile.borsaanalizim.util.RatiosConstant.EXPLANATION_PRICE_AND_EARNING
 import com.yavuzmobile.borsaanalizim.util.RatiosConstant.EXPLANATION_RETURN_ON_EQUITY_VALUE
+import com.yavuzmobile.borsaanalizim.util.RatiosConstant.LABEL_ACID_TEST_RATE_VALUE
 import com.yavuzmobile.borsaanalizim.util.RatiosConstant.LABEL_COMPANY_VALUE_AND_EBITDA
 import com.yavuzmobile.borsaanalizim.util.RatiosConstant.LABEL_COMPANY_VALUE_AND_NET_SALES
+import com.yavuzmobile.borsaanalizim.util.RatiosConstant.LABEL_CURRENT_RATE_VALUE
 import com.yavuzmobile.borsaanalizim.util.RatiosConstant.LABEL_EBITDA_GROWTH_RATE_VALUE
+import com.yavuzmobile.borsaanalizim.util.RatiosConstant.LABEL_FINANCIAL_LEVERAGE_VALUE
+import com.yavuzmobile.borsaanalizim.util.RatiosConstant.LABEL_INTEREST_COVERAGE_VALUE
 import com.yavuzmobile.borsaanalizim.util.RatiosConstant.LABEL_MARKET_BOOK_AND_BOOK_VALUE
 import com.yavuzmobile.borsaanalizim.util.RatiosConstant.LABEL_MARKET_VALUE_AND_OPERATION_PROFIT
 import com.yavuzmobile.borsaanalizim.util.RatiosConstant.LABEL_NET_DEBT_EQUITY_RATIO_VALUE
@@ -263,20 +268,24 @@ fun BalanceSheetScreen(
                         val marketValueAndNetOperatingProfitValues = balanceSheetWithRatios.ratios.map { it.marketValueAndNetOperatingProfit.cleanedNumberFormat().toDoubleOrDefault() }
                         val companyValueAndNetSalesValues = balanceSheetWithRatios.ratios.map { it.companyValueAndNetSales.cleanedNumberFormat().toDoubleOrDefault() }
                         val netOperatingProfitAndMarketValues = balanceSheetWithRatios.ratios.map { it.netOperatingProfitAndMarketValue.cleanedNumberFormat().toDoubleOrDefault() }
-                        val netDebtAndEquitiesValues = balanceSheetWithRatios.ratios.map { it.netDebtAndEquities.cleanedNumberFormat().toDoubleOrDefault() }
                         val netSalesGrowthRateValues = balanceSheetWithRatios.ratios.map { it.salesGrowthRate.cleanedNumberFormat().toDoubleOrDefault() }
                         val ebitdaGrowthRateValues = balanceSheetWithRatios.ratios.map { it.ebitdaGrowthRate.cleanedNumberFormat().toDoubleOrDefault() }
                         val netProfitGrowthRateValues = balanceSheetWithRatios.ratios.map { it.netProfitGrowthRate.cleanedNumberFormat().toDoubleOrDefault() }
                         val operatingProfitMarginValues = balanceSheetWithRatios.ratios.map { it.operatingProfitMargin.cleanedNumberFormat().toDoubleOrDefault() }
                         val equityProfitabilityValues = balanceSheetWithRatios.ratios.map { it.equityProfitability.cleanedNumberFormat().toDoubleOrDefault() }
+                        val currentRateValues = balanceSheetWithRatios.ratios.map { it.currentRate.cleanedNumberFormat().toDoubleOrDefault() }
+                        val acidTestRateValues = balanceSheetWithRatios.ratios.map { it.acidTestRate.cleanedNumberFormat().toDoubleOrDefault() }
+                        val netDebtAndEquitiesValues = balanceSheetWithRatios.ratios.map { it.netDebtAndEquities.cleanedNumberFormat().toDoubleOrDefault() }
+                        val financialLeverageValues = balanceSheetWithRatios.ratios.map { it.financialLeverage.cleanedNumberFormat().toDoubleOrDefault() }
+                        val interestCoverageValues = balanceSheetWithRatios.ratios.map { it.interestCoverage.cleanedNumberFormat().toDoubleOrDefault() }
 
                         val clipboardManager = LocalClipboardManager.current
                         var isProcessing by remember { mutableStateOf(false) }
                         var copyText by remember { mutableStateOf("") }
 
-                        val coroutineScope = rememberCoroutineScope()
-
-                        Box(modifier = Modifier.fillMaxWidth().padding(top = 16.dp, end = 16.dp)) {
+                        Box(modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 16.dp, end = 16.dp)) {
                             Button(
                                 onClick = {
                                     isProcessing = true
@@ -401,13 +410,6 @@ fun BalanceSheetScreen(
                                     .width(90.dp)
                                     .padding(horizontal = 4.dp)
                             ) {
-                                TableRatiosItemText(LABEL_NET_DEBT_EQUITY_RATIO_VALUE, netDebtAndEquitiesValues, isPercentageRate = false, isInverted = false, isReverse = true)
-                            }
-                            Column(
-                                Modifier
-                                    .width(90.dp)
-                                    .padding(horizontal = 4.dp)
-                            ) {
                                 TableRatiosItemText(LABEL_NET_REVENUE_GROWTH_RATE_VALUE, netSalesGrowthRateValues, isPercentageRate = true, isInverted = true)
                             }
                             Column(
@@ -437,6 +439,41 @@ fun BalanceSheetScreen(
                                     .padding(horizontal = 4.dp)
                             ) {
                                 TableRatiosItemText(LABEL_RETURN_ON_EQUITY_VALUE, equityProfitabilityValues, isPercentageRate = true, isInverted = true)
+                            }
+                            Column(
+                                Modifier
+                                    .width(90.dp)
+                                    .padding(horizontal = 4.dp)
+                            ) {
+                                TableRatiosItemText(LABEL_CURRENT_RATE_VALUE, currentRateValues, isPercentageRate = false, isInverted = true)
+                            }
+                            Column(
+                                Modifier
+                                    .width(90.dp)
+                                    .padding(horizontal = 4.dp)
+                            ) {
+                                TableRatiosItemText(LABEL_ACID_TEST_RATE_VALUE, acidTestRateValues, isPercentageRate = false, isInverted = true)
+                            }
+                            Column(
+                                Modifier
+                                    .width(90.dp)
+                                    .padding(horizontal = 4.dp)
+                            ) {
+                                TableRatiosItemText(LABEL_NET_DEBT_EQUITY_RATIO_VALUE, netDebtAndEquitiesValues, isPercentageRate = false, isInverted = false, isReverse = true)
+                            }
+                            Column(
+                                Modifier
+                                    .width(90.dp)
+                                    .padding(horizontal = 4.dp)
+                            ) {
+                                TableRatiosItemText(LABEL_FINANCIAL_LEVERAGE_VALUE, financialLeverageValues, isPercentageRate = false, isInverted = true)
+                            }
+                            Column(
+                                Modifier
+                                    .width(90.dp)
+                                    .padding(horizontal = 4.dp)
+                            ) {
+                                TableRatiosItemText(LABEL_INTEREST_COVERAGE_VALUE, interestCoverageValues, isPercentageRate = false, isInverted = true)
                             }
                         }
 
@@ -479,7 +516,13 @@ fun BalanceSheetScreen(
 }
 
 @Composable
-fun TableRatiosItemText(label: String, values: List<Double>, isPercentageRate: Boolean = false, isInverted: Boolean = false, isReverse: Boolean = false) {
+fun TableRatiosItemText(
+    label: String,
+    values: List<Double>,
+    isPercentageRate: Boolean = false,
+    isInverted: Boolean = false,
+    isReverse: Boolean = false
+) {
     Text(
         label,
         fontWeight = FontWeight.Bold,
@@ -487,10 +530,10 @@ fun TableRatiosItemText(label: String, values: List<Double>, isPercentageRate: B
         modifier = Modifier.fillMaxWidth()
     )
     values.forEach { valueItem ->
-        val backgroundColor = getBackgroundColor(valueItem, values, isInverted, isReverse)
+        val backgroundColor = getBackgroundColor(valueItem, if (!isInverted) values.filter { it >= 0 } else values, isInverted, isReverse)
         val value = if (isPercentageRate) "$valueItem".decimalNumberFormat() + "%" else "$valueItem".decimalNumberFormat()
         Text(
-            value,
+            if ((!isInverted && valueItem < 0) || valueItem.isInfinite()) "-" else value,
             modifier = Modifier
                 .fillMaxWidth()
                 .background(backgroundColor), textAlign = TextAlign.Center, color = Color(0xFF333333)
@@ -506,7 +549,11 @@ fun getBackgroundColor(value: Double, values: List<Double>, isInverted: Boolean 
     }
 
     if (value < 0 && !isInverted) {
-        return Color(0xFFA30000)
+        return Color(0xFFF4E6E6) // (Bej)
+    }
+
+    if (value.isInfinite()) {
+        return Color(0xFFF4E6E6) // (Bej)
     }
 
     val colors = listOf(
@@ -534,6 +581,7 @@ fun getBackgroundColor(value: Double, values: List<Double>, isInverted: Boolean 
     val position = sortedValues.indexOf(value)
 
     val colorIndex = (position.toFloat() / (values.size - 1) * (colors.size - 1)).toInt()
+    Log.i("SELECTED", "Values: " + values.toString() + " Colors: " + colors.toString() + " Postion: " + position.toString())
     val selectedColor = colors[colorIndex]
 
     return if (isInverted) colors.reversed()[colorIndex] else selectedColor

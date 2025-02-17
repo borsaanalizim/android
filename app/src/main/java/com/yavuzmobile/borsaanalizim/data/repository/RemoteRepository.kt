@@ -173,6 +173,8 @@ class RemoteRepository @Inject constructor(private val api: Api) {
                                 period = balanceSheetItem.period.orEmpty(),
                                 currentAssets = balanceSheetItem.currentAssets.orEmpty(),
                                 longTermAssets = balanceSheetItem.longTermAssets.orEmpty(),
+                                inventories = balanceSheetItem.inventories.orEmpty(),
+                                totalAssets = balanceSheetItem.totalAssets.orEmpty(),
                                 paidCapital = balanceSheetItem.paidCapital.orEmpty(),
                                 equities = balanceSheetItem.equities.orEmpty(),
                                 equitiesOfParentCompany = balanceSheetItem.equitiesOfParentCompany.orEmpty(),
@@ -224,6 +226,8 @@ class RemoteRepository @Inject constructor(private val api: Api) {
                                 period = balanceSheetItem.period.orEmpty(),
                                 currentAssets = balanceSheetItem.currentAssets.orEmpty(),
                                 longTermAssets = balanceSheetItem.longTermAssets.orEmpty(),
+                                inventories = balanceSheetItem.inventories.orEmpty(),
+                                totalAssets = balanceSheetItem.totalAssets.orEmpty(),
                                 paidCapital = balanceSheetItem.paidCapital.orEmpty(),
                                 equities = balanceSheetItem.equities.orEmpty(),
                                 equitiesOfParentCompany = balanceSheetItem.equitiesOfParentCompany.orEmpty(),
@@ -278,6 +282,8 @@ class RemoteRepository @Inject constructor(private val api: Api) {
                                 period = balanceSheetItem.period.orEmpty(),
                                 currentAssets = balanceSheetItem.currentAssets.orEmpty(),
                                 longTermAssets = balanceSheetItem.longTermAssets.orEmpty(),
+                                inventories = balanceSheetItem.inventories.orEmpty(),
+                                totalAssets = balanceSheetItem.totalAssets.orEmpty(),
                                 paidCapital = balanceSheetItem.paidCapital.orEmpty(),
                                 equities = balanceSheetItem.equities.orEmpty(),
                                 equitiesOfParentCompany = balanceSheetItem.equitiesOfParentCompany.orEmpty(),
@@ -306,7 +312,13 @@ class RemoteRepository @Inject constructor(private val api: Api) {
                         )
                     }
                 }
-                emit(Result.Success(balanceSheetList))
+                val sortedBalanceSheetList = balanceSheetList.sortedWith(
+                    compareBy<BalanceSheetEntity> { it.stockCode }.thenByDescending {
+                        val (year, month) = it.period.split("/").map { part -> part.toInt() }
+                        year * 10 + month
+                    }
+                )
+                emit(Result.Success(sortedBalanceSheetList))
             } else {
                 emit(Result.Error(response.code(), response.errorBody()?.string().toString()))
             }

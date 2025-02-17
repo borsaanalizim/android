@@ -29,6 +29,7 @@ import kotlinx.coroutines.flow.last
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import kotlin.math.abs
 
 @OptIn(FlowPreview::class)
 @HiltViewModel
@@ -328,4 +329,29 @@ class CompareStocksViewModel @Inject constructor(
             _selectedStocksUiState.update { value }
         }
     }
+
+    fun calculateScorePoint(
+        value: Double,
+        values: List<Double>,
+        maxPoint: Double,
+        isNegative: Boolean,
+        isInverted: Boolean
+    ): Double {
+        if (values.isEmpty()) return 0.0
+
+        if (value < 0 && !isNegative) return 0.0
+
+        if (isNegative && !isInverted) {
+            val sortedList = values.sortedDescending()
+            val position = sortedList.indexOf(value).toDouble()
+            val score = maxPoint / values.size * (position + 1)
+            return score
+        }
+
+        val sortedList = if (isInverted) values.sorted() else values.sortedDescending()
+        val position = sortedList.indexOf(value).toDouble()
+        val score = maxPoint / values.size * (position + 1)
+        return score
+    }
+
 }

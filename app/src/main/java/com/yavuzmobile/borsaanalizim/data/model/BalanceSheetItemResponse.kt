@@ -4,6 +4,8 @@ data class BalanceSheetItemResponse(
     val period: String?,
     val currentAssets: String?,
     val longTermAssets: String?,
+    val inventories: String?,
+    val totalAssets: String?,
     val paidCapital : String?,
     val equities: String?,
     val equitiesOfParentCompany: String?,
